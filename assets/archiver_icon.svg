@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="boxGrad" x1="24" y1="28" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1f7f96"/>
+      <stop offset="1" stop-color="#14566a"/>
+    </linearGradient>
+    <linearGradient id="lipGrad" x1="24" y1="34" x2="104" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2a95ad"/>
+      <stop offset="1" stop-color="#1a7085"/>
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="44" y1="48" x2="84" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7ed4a2"/>
+      <stop offset="1" stop-color="#43a86f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- archive box -->
+  <rect x="24" y="42" width="80" height="62" rx="10" fill="url(#boxGrad)"/>
+  <path d="M24 50c0-4.4 3.6-8 8-8h64c4.4 0 8 3.6 8 8v8H24V50z" fill="url(#lipGrad)"/>
+  <path d="M56 42h16v8c0 2.2-1.8 4-4 4H60c-2.2 0-4-1.8-4-4v-8z" fill="#0f4554"/>
+
+  <!-- folders inside -->
+  <rect x="36" y="56" width="18" height="14" rx="3" fill="#ffffff" opacity="0.95"/>
+  <rect x="55" y="56" width="18" height="14" rx="3" fill="#ffffff" opacity="0.95"/>
+  <rect x="74" y="56" width="18" height="14" rx="3" fill="#ffffff" opacity="0.95"/>
+
+  <!-- shield -->
+  <path d="M64 48c8 4 14 4.5 20 2.5V72c0 10-8.5 16.5-20 20-11.5-3.5-20-10-20-20V50.5c6 2 12 1.5 20-2.5z"
+        fill="#ffffff" stroke="url(#shieldGrad)" stroke-width="4" stroke-linejoin="round"/>
+
+  <!-- backup arrow -->
+  <path d="M64 58v16M64 74l-7-7M64 74l7-7" stroke="#2d8a5a" stroke-width="5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
