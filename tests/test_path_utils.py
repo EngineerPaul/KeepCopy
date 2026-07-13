@@ -8,12 +8,69 @@ import pytest
 
 from services.path_utils import (
     find_nested_source_indices,
+    get_app_executable,
     is_absolute_drive_path,
+    is_compiled_app,
     is_path_nested_in,
     validate_directory_path,
     validate_path,
 )
 from tests.conftest import write_file
+
+
+def test_is_compiled_app_pyinstaller() -> None:
+    import sys
+    from unittest.mock import patch
+
+    with patch.object(sys, "frozen", True, create=True):
+        assert is_compiled_app() is True
+
+
+def test_is_compiled_app_nuitka_argv() -> None:
+    import sys
+    from unittest.mock import patch
+
+    exe = r"C:\Apps\Archiver\Archiver.exe"
+    with (
+        patch.object(sys, "frozen", False, create=True),
+        patch.object(sys, "argv", [exe]),
+    ):
+        assert is_compiled_app() is True
+
+
+def test_is_compiled_app_python_dev() -> None:
+    import sys
+    from unittest.mock import patch
+
+    with (
+        patch.object(sys, "frozen", False, create=True),
+        patch.object(sys, "argv", ["main.py"]),
+        patch.dict("services.path_utils.__dict__", {"__compiled__": None}, clear=False),
+    ):
+        # __compiled__ may exist in real Nuitka build; ensure python dev path still works
+        import services.path_utils as pu
+
+        original = pu.__dict__.get("__compiled__")
+        try:
+            if "__compiled__" in pu.__dict__:
+                del pu.__dict__["__compiled__"]
+            assert is_compiled_app() is False
+        finally:
+            if original is not None:
+                pu.__dict__["__compiled__"] = original
+
+
+def test_get_app_executable_prefers_argv_exe() -> None:
+    import sys
+    from unittest.mock import patch
+
+    exe = r"C:\Apps\Archiver\Archiver.exe"
+    with (
+        patch.object(sys, "frozen", False, create=True),
+        patch.object(sys, "argv", [exe]),
+        patch.object(sys, "executable", r"C:\Apps\Archiver\python.exe"),
+    ):
+        assert get_app_executable() == Path(exe).resolve()
 
 
 class TestAbsoluteDrivePath:

@@ -6,7 +6,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
-from services.autostart import BACKGROUND_ARG, sync_autostart
+from services.autostart import BACKGROUND_ARG, reconcile_autostart
 from services.storage import StorageService
 from ui.app_icon import app_icon
 from ui.app_tray import AppTray
@@ -40,8 +40,7 @@ def main() -> int:
 
     storage = StorageService()
     storage.load()
-    settings = storage.get_settings()
-    sync_autostart(settings.autostart)
+    reconcile_autostart(storage)
 
     window = MainWindow(storage, start_hidden=background)
     apply_pointing_hand_cursors(window)

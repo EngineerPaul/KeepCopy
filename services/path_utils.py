@@ -14,11 +14,40 @@ _PATH_CHARS_RE = re.compile(r'^[\w\s\.\-\+\(\)\[\]@#$%&!~`\'{},;=]+$')
 _FILTER_CHARS_RE = re.compile(r'^[\w\s\.\-\+\(\)\[\]@#$%&!~`\'{},;=*\\/]+$')
 
 
+def is_compiled_app() -> bool:
+    """True для PyInstaller, Nuitka и других упакованных сборок."""
+    import sys
+
+    if getattr(sys, "frozen", False):
+        return True
+    if "__compiled__" in globals():
+        return True
+    argv0 = Path(getattr(sys, "argv", [""])[0] or "")
+    return (
+        argv0.suffix.lower() == ".exe"
+        and argv0.name.lower() not in ("python.exe", "pythonw.exe")
+    )
+
+
+def get_app_executable() -> Path:
+    """Путь к исполняемому файлу приложения (exe или python)."""
+    import sys
+
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable)
+    argv0 = Path(sys.argv[0])
+    if (
+        argv0.suffix.lower() == ".exe"
+        and argv0.name.lower() not in ("python.exe", "pythonw.exe")
+    ):
+        return argv0.resolve()
+    return Path(sys.executable)
+
+
 def get_app_dir() -> Path:
     """Возвращает директорию приложения (рядом с main.py или exe)."""
-    import sys
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
+    if is_compiled_app():
+        return get_app_executable().parent
     return Path(__file__).resolve().parent.parent
 
 

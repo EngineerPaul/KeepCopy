@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from services.path_utils import get_app_dir
+from services.path_utils import get_app_dir, get_app_executable, is_compiled_app
 
 SHORTCUT_NAME = "Archiver.lnk"
 BACKGROUND_ARG = "--background"
@@ -51,8 +51,8 @@ def get_launch_spec() -> tuple[Path, str, Path]:
     Разработка: pythonw.exe "main.py" --background
     """
     work_dir = get_app_dir()
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable), BACKGROUND_ARG, work_dir
+    if is_compiled_app():
+        return get_app_executable(), BACKGROUND_ARG, work_dir
 
     python_dir = Path(sys.executable).parent
     pythonw = python_dir / "pythonw.exe"
@@ -111,10 +111,24 @@ def apply_autostart(enabled: bool) -> None:
 
 
 def sync_autostart(enabled: bool) -> None:
-    """Приводит ярлык в соответствие с настройкой (после ручного удаления и т.п.)."""
+    """Приводит ярлык в соответствие с настройкой."""
     if not is_windows():
         return
-    if enabled and not is_autostart_enabled():
+    if enabled:
         enable_autostart()
-    elif not enabled and is_autostart_enabled():
+    elif is_autostart_enabled():
         disable_autostart()
+
+
+def reconcile_autostart(storage) -> None:
+    """При старте сверяет галочку в settings.json с ярлыком в Startup."""
+    if not is_windows():
+        return
+    settings = storage.get_settings()
+    enabled = settings.autostart
+    present = is_autostart_enabled()
+    if enabled == present:
+        if enabled:
+            enable_autostart()
+        return
+    sync_autostart(enabled)

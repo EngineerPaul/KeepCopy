@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +15,10 @@ ICON = ROOT / "assets" / "archiver_icon.ico"
 
 def main() -> int:
     """Запускает Nuitka с параметрами проекта."""
+    # Короткий путь без пробелов: иначе MinGW из кэша Nuitka не находит windows.h.
+    if not os.environ.get("NUITKA_CACHE_DIR"):
+        os.environ["NUITKA_CACHE_DIR"] = r"C:\NuitkaCache"
+
     icon_script = ROOT / "scripts" / "build_icon.py"
     if not ICON.is_file():
         rc = subprocess.call([sys.executable, str(icon_script)], cwd=ROOT)
@@ -26,7 +32,8 @@ def main() -> int:
         "-m",
         "nuitka",
         "--standalone",
-        "--windows-disable-console",
+        "--windows-console-mode=disable",
+        "--assume-yes-for-downloads",
         "--enable-plugin=pyside6",
         "--include-package=pathspec",
         f"--include-data-dir={ROOT / 'assets'}=assets",
@@ -39,7 +46,18 @@ def main() -> int:
         str(ROOT / "main.py"),
     ]
     print(" ".join(f'"{part}"' if " " in part else part for part in cmd))
-    return subprocess.call(cmd, cwd=ROOT)
+    rc = subprocess.call(cmd, cwd=ROOT)
+    if rc != 0:
+        return rc
+
+    built_dist = COMPILER_DIR / "main.dist"
+    dist_dir = COMPILER_DIR / "Archiver.dist"
+    if built_dist.is_dir():
+        if dist_dir.is_dir():
+            shutil.rmtree(dist_dir)
+        built_dist.rename(dist_dir)
+        print(f"Готово: {dist_dir / 'Archiver.exe'}")
+    return 0
 
 
 if __name__ == "__main__":

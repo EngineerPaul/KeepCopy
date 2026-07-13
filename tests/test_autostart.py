@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -35,7 +35,26 @@ def test_get_launch_spec_frozen() -> None:
     with (
         patch.object(sys, "frozen", True, create=True),
         patch.object(sys, "executable", str(exe)),
+        patch.object(sys, "argv", [str(exe)]),
         patch("services.autostart.get_app_dir", return_value=exe.parent),
+        patch("services.autostart.is_compiled_app", return_value=True),
+        patch("services.autostart.get_app_executable", return_value=exe),
+    ):
+        target, arguments, work_dir = autostart.get_launch_spec()
+    assert target == exe
+    assert arguments == "--background"
+    assert work_dir == exe.parent
+
+
+def test_get_launch_spec_nuitka_exe_argv() -> None:
+    exe = Path(r"C:\Apps\Archiver\Archiver.exe")
+    with (
+        patch.object(sys, "frozen", False, create=True),
+        patch.object(sys, "executable", r"C:\Apps\Archiver\python.exe"),
+        patch.object(sys, "argv", [str(exe)]),
+        patch("services.autostart.get_app_dir", return_value=exe.parent),
+        patch("services.autostart.is_compiled_app", return_value=True),
+        patch("services.autostart.get_app_executable", return_value=exe),
     ):
         target, arguments, work_dir = autostart.get_launch_spec()
     assert target == exe
@@ -49,11 +68,10 @@ def test_apply_autostart_non_windows() -> None:
         autostart.apply_autostart(False)
 
 
-def test_sync_autostart_creates_when_missing(tmp_path: Path) -> None:
-    lnk = tmp_path / "Archiver.lnk"
+def test_sync_autostart_enabled_always_refreshes_shortcut() -> None:
     with (
         patch.object(autostart, "is_windows", return_value=True),
-        patch.object(autostart, "shortcut_path", return_value=lnk),
+        patch.object(autostart, "is_autostart_enabled", return_value=True),
         patch.object(autostart, "enable_autostart") as enable,
         patch.object(autostart, "disable_autostart") as disable,
     ):
@@ -62,15 +80,41 @@ def test_sync_autostart_creates_when_missing(tmp_path: Path) -> None:
         disable.assert_not_called()
 
 
-def test_sync_autostart_removes_when_disabled(tmp_path: Path) -> None:
-    lnk = tmp_path / "Archiver.lnk"
-    lnk.write_text("stub", encoding="utf-8")
+def test_sync_autostart_disabled_removes_shortcut() -> None:
     with (
         patch.object(autostart, "is_windows", return_value=True),
-        patch.object(autostart, "shortcut_path", return_value=lnk),
+        patch.object(autostart, "is_autostart_enabled", return_value=True),
         patch.object(autostart, "enable_autostart") as enable,
         patch.object(autostart, "disable_autostart") as disable,
     ):
         autostart.sync_autostart(False)
         disable.assert_called_once()
         enable.assert_not_called()
+
+
+def test_reconcile_autostart_fixes_missing_shortcut() -> None:
+    storage = MagicMock()
+    storage.get_settings.return_value = MagicMock(autostart=True)
+    with (
+        patch.object(autostart, "is_windows", return_value=True),
+        patch.object(autostart, "is_autostart_enabled", return_value=False),
+        patch.object(autostart, "sync_autostart") as sync,
+        patch.object(autostart, "enable_autostart") as enable,
+    ):
+        autostart.reconcile_autostart(storage)
+        sync.assert_called_once_with(True)
+        enable.assert_not_called()
+
+
+def test_reconcile_autostart_refreshes_matching_enabled() -> None:
+    storage = MagicMock()
+    storage.get_settings.return_value = MagicMock(autostart=True)
+    with (
+        patch.object(autostart, "is_windows", return_value=True),
+        patch.object(autostart, "is_autostart_enabled", return_value=True),
+        patch.object(autostart, "sync_autostart") as sync,
+        patch.object(autostart, "enable_autostart") as enable,
+    ):
+        autostart.reconcile_autostart(storage)
+        sync.assert_not_called()
+        enable.assert_called_once()
