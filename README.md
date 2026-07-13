@@ -42,6 +42,19 @@ pytest tests/ -v
 
 - `FILTERS.md` — описание фильтров-исключений
 - `BUILD.md` — сборка через Nuitka и автозапуск
+- `true_prompt.docx` — актуальное ТЗ по готовому коду (отличия от исходного `prompt.docx`)
+
+### Генерация true_prompt.docx
+
+Файл `true_prompt.docx` создаётся скриптом `scripts/generate_true_prompt.py` на основе реализованного приложения: интерфейс, логика копирования, расписание, автозапуск, сборка, тесты.
+
+```bash
+venv\Scripts\activate
+pip install python-docx
+python scripts/generate_true_prompt.py
+```
+
+Результат сохраняется в корне проекта: `true_prompt.docx`.
 
 ## Основные возможности
 
