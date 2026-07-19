@@ -149,8 +149,8 @@ class BackupEngine:
         self,
         task: Task,
         on_source: Optional[SourceProgressCallback] = None,
-    ) -> int:
-        """Подсчитывает общий размер файлов задачи для кэша."""
+    ) -> tuple[int, dict[str, int]]:
+        """Подсчитывает размер файлов задачи: сумма и по источникам."""
         matcher = FileMatcher(task)
         return matcher.calculate_size(on_source=on_source)
 

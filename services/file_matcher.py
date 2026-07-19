@@ -233,27 +233,29 @@ class FileMatcher:
     def calculate_size(
         self,
         on_source: Optional[Callable[[int, str, int], None]] = None,
-    ) -> int:
+    ) -> tuple[int, dict[str, int]]:
         """
-        Подсчитывает общий размер файлов задачи (без учёта режима копирования).
+        Подсчитывает размер файлов по каждому источнику (без режима копирования).
 
         Args:
             on_source: Колбэк (номер, путь источника, всего источников).
 
         Returns:
-            Суммарный размер в байтах.
+            (сумма байт, {путь источника: байт}).
         """
-        total = 0
+        per_source: dict[str, int] = {}
         sources = self.task.sources
         sources_total = len(sources)
         for index, source in enumerate(sources, 1):
             if on_source is not None:
                 on_source(index, source, sources_total)
+            source_total = 0
             for entry in self.iter_entries(source, for_copy=False):
                 if entry.is_dir:
                     continue
-                total += entry.size
-        return total
+                source_total += entry.size
+            per_source[source] = source_total
+        return sum(per_source.values()), per_source
 
     def collect_for_copy(
         self,

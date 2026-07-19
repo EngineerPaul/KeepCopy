@@ -90,7 +90,7 @@ class MainWindow(QMainWindow):
         self._force_quit = False
         self._tasks: list[Task] = []
         self._settings = AppSettings()
-        self._size_cache: dict[str, int] = {}
+        self._size_cache: dict[str, dict] = {}
         self._stale_sizes: set[str] = set()
         self._expanded: set[str] = set()
         self._selected_ids: list[str] = []
@@ -331,9 +331,20 @@ class MainWindow(QMainWindow):
             ),
         )
 
-        size = self._size_cache.get(task.id, -1)
+        expanded = task.id in self._expanded
+        if expanded and task.sources:
+            size = self._source_size(task.id, task.sources[0])
+            size_as_detail = True
+        else:
+            size = self._task_total_size(task.id)
+            size_as_detail = False
         size_text = format_size(size) if size >= 0 else "—"
-        size_item = make_table_item(size_text, task_id=task.id, centered=True)
+        size_item = make_table_item(
+            size_text,
+            task_id=task.id,
+            centered=True,
+            detail=size_as_detail,
+        )
         if task.id in self._stale_sizes:
             size_item.setForeground(QColor("#f57c00"))
         self._set_item(row, "total_size", size_item)
@@ -388,6 +399,29 @@ class MainWindow(QMainWindow):
             if item:
                 item.setToolTip(tip)
 
+    def _task_total_size(self, task_id: str) -> int:
+        """Суммарный размер задачи из кэша (-1 если нет данных)."""
+        entry = self._size_cache.get(task_id)
+        if not isinstance(entry, dict):
+            return -1
+        try:
+            return int(entry.get("total", -1))
+        except (TypeError, ValueError):
+            return -1
+
+    def _source_size(self, task_id: str, source: str) -> int:
+        """Размер одного источника из кэша (-1 если нет данных)."""
+        entry = self._size_cache.get(task_id)
+        if not isinstance(entry, dict):
+            return -1
+        sources = entry.get("sources", {})
+        if not isinstance(sources, dict) or source not in sources:
+            return -1
+        try:
+            return int(sources[source])
+        except (TypeError, ValueError):
+            return -1
+
     def _insert_detail_rows(self, row: int, task: Task) -> int:
         """Вставляет доп. строки источников/исключений (без первого — он в строке задачи)."""
         details = []
@@ -410,6 +444,15 @@ class MainWindow(QMainWindow):
                         sources_first=text,
                     )
                     self._table.setItem(row, ci, item)
+                elif col_key == "total_size" and kind == "sources":
+                    src_size = self._source_size(task.id, text)
+                    size_text = format_size(src_size) if src_size >= 0 else "—"
+                    size_item = make_table_item(
+                        size_text, detail=True, centered=True
+                    )
+                    if task.id in self._stale_sizes:
+                        size_item.setForeground(QColor("#f57c00"))
+                    self._table.setItem(row, ci, size_item)
                 else:
                     self._table.setItem(row, ci, make_table_item("", detail=True))
             indices.append(row)
@@ -709,11 +752,25 @@ class MainWindow(QMainWindow):
         """Блокирует кнопку Выполнить при занятости."""
         self._btn_run.setEnabled(not busy)
 
-    def _on_size_updated(self, task_id: str, size: int) -> None:
+    def _on_size_updated(self, task_id: str, payload: object) -> None:
         """Обновляет кэш размера в таблице."""
-        self._size_cache[task_id] = size
+        if isinstance(payload, dict):
+            entry = {
+                "total": int(payload.get("total", 0)),
+                "sources": {
+                    str(k): int(v)
+                    for k, v in (payload.get("sources") or {}).items()
+                },
+            }
+        elif isinstance(payload, int) and not isinstance(payload, bool):
+            entry = {"total": payload, "sources": {}}
+        else:
+            entry = {"total": 0, "sources": {}}
+        self._size_cache[task_id] = entry
         self._stale_sizes.discard(task_id)
-        self._storage.update_task_size(task_id, size)
+        self._storage.update_task_size(
+            task_id, entry["total"], entry["sources"]
+        )
         self._storage.save()
         self._refresh_table()
 

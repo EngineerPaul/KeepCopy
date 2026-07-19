@@ -11,6 +11,30 @@ from models.task import Task
 from services.path_utils import get_app_dir
 
 
+def normalize_size_entry(raw: Any) -> dict[str, Any]:
+    """Приводит запись кэша к {total: int, sources: {path: int}}."""
+    if isinstance(raw, bool):
+        return {"total": -1, "sources": {}}
+    if isinstance(raw, int):
+        return {"total": raw, "sources": {}}
+    if not isinstance(raw, dict):
+        return {"total": -1, "sources": {}}
+    sources: dict[str, int] = {}
+    sources_raw = raw.get("sources", {})
+    if isinstance(sources_raw, dict):
+        for key, value in sources_raw.items():
+            try:
+                sources[str(key)] = int(value)
+            except (TypeError, ValueError):
+                continue
+    total_raw = raw.get("total", sum(sources.values()) if sources else -1)
+    try:
+        total = int(total_raw)
+    except (TypeError, ValueError):
+        total = sum(sources.values()) if sources else -1
+    return {"total": total, "sources": sources}
+
+
 class StorageService:
     """Сервис хранения данных приложения в JSON."""
 
@@ -68,16 +92,32 @@ class StorageService:
         """Сохраняет настройки приложения."""
         self._data["settings"] = settings.to_dict()
 
-    def get_size_cache(self) -> dict[str, int]:
-        """Возвращает кэш размеров задач {task_id: bytes}."""
-        return dict(self._data.get("size_cache", {}))
+    def get_size_cache(self) -> dict[str, dict[str, Any]]:
+        """Возвращает кэш размеров {task_id: {total, sources}}."""
+        raw = self._data.get("size_cache", {})
+        if not isinstance(raw, dict):
+            return {}
+        return {
+            str(task_id): normalize_size_entry(entry)
+            for task_id, entry in raw.items()
+        }
 
-    def set_size_cache(self, cache: dict[str, int]) -> None:
+    def set_size_cache(self, cache: dict[str, Any]) -> None:
         """Сохраняет кэш размеров задач."""
-        self._data["size_cache"] = cache
+        self._data["size_cache"] = {
+            str(task_id): normalize_size_entry(entry)
+            for task_id, entry in cache.items()
+        }
 
-    def update_task_size(self, task_id: str, size: int) -> None:
-        """Обновляет кэшированный размер одной задачи."""
-        cache = self.get_size_cache()
-        cache[task_id] = size
-        self.set_size_cache(cache)
+    def update_task_size(
+        self,
+        task_id: str,
+        size: int,
+        sources: dict[str, int] | None = None,
+    ) -> None:
+        """Обновляет кэшированный размер задачи (сумма и по источникам)."""
+        cache = self._data.setdefault("size_cache", {})
+        cache[task_id] = {
+            "total": int(size),
+            "sources": {str(k): int(v) for k, v in (sources or {}).items()},
+        }

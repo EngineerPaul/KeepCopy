@@ -25,7 +25,8 @@ class TaskQueueManager(QObject):
     """Последовательное выполнение задач в фоне."""
 
     status_changed = Signal(str)
-    task_size_updated = Signal(str, "qint64")
+    # task_id, {"total": int, "sources": {path: int}}
+    task_size_updated = Signal(str, object)
     task_finished = Signal(str, object)
     queue_finished = Signal()
     busy_changed = Signal(bool)
@@ -95,10 +96,27 @@ class TaskQueueManager(QObject):
         worker.finished.connect(self._scan_startup_next)
         worker.start()
 
-    def _on_startup_scan_done(self, task_id: str, size: int) -> None:
+    def _on_startup_scan_done(self, task_id: str, payload: object) -> None:
         """Обработчик завершения стартового подсчёта."""
-        self._storage.update_task_size(task_id, size)
-        self.task_size_updated.emit(task_id, size)
+        total, sources = self._unpack_size_payload(payload)
+        self._storage.update_task_size(task_id, total, sources)
+        self.task_size_updated.emit(task_id, {"total": total, "sources": sources})
+
+    @staticmethod
+    def _unpack_size_payload(payload: object) -> tuple[int, dict[str, int]]:
+        """Достаёт сумму и размеры источников из результата сканирования."""
+        if isinstance(payload, dict):
+            sources_raw = payload.get("sources", {})
+            sources = (
+                {str(k): int(v) for k, v in sources_raw.items()}
+                if isinstance(sources_raw, dict)
+                else {}
+            )
+            total_raw = payload.get("total", sum(sources.values()))
+            return int(total_raw), sources
+        if isinstance(payload, int) and not isinstance(payload, bool):
+            return payload, {}
+        return 0, {}
 
     def _set_busy(self, busy: bool) -> None:
         """Устанавливает флаг занятости."""
@@ -141,12 +159,13 @@ class TaskQueueManager(QObject):
         self.status_changed.emit(
             f"Ошибка подсчёта: {message}. Запуск копирования..."
         )
-        self._on_pre_backup_scan(task_id, 0)
+        self._on_pre_backup_scan(task_id, {"total": 0, "sources": {}})
 
-    def _on_pre_backup_scan(self, task_id: str, size: int) -> None:
+    def _on_pre_backup_scan(self, task_id: str, payload: object) -> None:
         """Обработчик подсчёта перед копированием."""
-        self._storage.update_task_size(task_id, size)
-        self.task_size_updated.emit(task_id, size)
+        total, sources = self._unpack_size_payload(payload)
+        self._storage.update_task_size(task_id, total, sources)
+        self.task_size_updated.emit(task_id, {"total": total, "sources": sources})
         task = self._current_task
         self._current_backup = BackupWorker(
             task, automatic=self._current_automatic, parent=self

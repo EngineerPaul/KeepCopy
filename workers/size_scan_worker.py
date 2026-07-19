@@ -13,7 +13,8 @@ class SizeScanWorker(QThread):
 
     # task_name, source_path, current, total
     progress = Signal(str, str, int, int)
-    finished_scan = Signal(str, "qint64")  # task_id, size (bytes)
+    # task_id, {"total": int, "sources": {path: int}}
+    finished_scan = Signal(str, object)
     error = Signal(str, str)
 
     def __init__(self, task: Task, parent: QObject | None = None) -> None:
@@ -28,7 +29,12 @@ class SizeScanWorker(QThread):
             def on_source(current: int, source: str, total: int) -> None:
                 self.progress.emit(self._task.name, source, current, total)
 
-            size = self._engine.calculate_task_size(self._task, on_source=on_source)
-            self.finished_scan.emit(self._task.id, size)
+            total, sources = self._engine.calculate_task_size(
+                self._task, on_source=on_source
+            )
+            self.finished_scan.emit(
+                self._task.id,
+                {"total": total, "sources": sources},
+            )
         except Exception as e:
             self.error.emit(self._task.id, str(e))
