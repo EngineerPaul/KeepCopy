@@ -6,7 +6,7 @@ import os
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterator, Optional
+from typing import Callable, Iterator, Optional
 
 from pathspec import PathSpec
 
@@ -230,16 +230,25 @@ class FileMatcher:
                     mtime=stat.st_mtime,
                 )
 
-    def calculate_size(self) -> int:
+    def calculate_size(
+        self,
+        on_source: Optional[Callable[[int, str, int], None]] = None,
+    ) -> int:
         """
         Подсчитывает общий размер файлов задачи (без учёта режима копирования).
+
+        Args:
+            on_source: Колбэк (номер, путь источника, всего источников).
 
         Returns:
             Суммарный размер в байтах.
         """
         total = 0
-        seen_dirs: set[str] = set()
-        for source in self.task.sources:
+        sources = self.task.sources
+        sources_total = len(sources)
+        for index, source in enumerate(sources, 1):
+            if on_source is not None:
+                on_source(index, source, sources_total)
             for entry in self.iter_entries(source, for_copy=False):
                 if entry.is_dir:
                     continue

@@ -53,9 +53,20 @@ def main() -> int:
     built_dist = COMPILER_DIR / "main.dist"
     dist_dir = COMPILER_DIR / "Archiver.dist"
     if built_dist.is_dir():
+        # Сохраняем settings.json из предыдущей сборки, чтобы не сбрасывать задачи/настройки.
+        preserved_settings: bytes | None = None
+        settings_path = dist_dir / "settings.json"
+        if settings_path.is_file():
+            preserved_settings = settings_path.read_bytes()
+
         if dist_dir.is_dir():
             shutil.rmtree(dist_dir)
         built_dist.rename(dist_dir)
+
+        if preserved_settings is not None:
+            (dist_dir / "settings.json").write_bytes(preserved_settings)
+            print(f"Восстановлен: {dist_dir / 'settings.json'}")
+
         print(f"Готово: {dist_dir / 'Archiver.exe'}")
     return 0
 

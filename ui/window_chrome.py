@@ -174,7 +174,10 @@ def apply_window_chrome(widget: QWidget, *, theme: str, force: bool = False) -> 
     """Подстраивает цвет заголовка окна под тему (Windows)."""
     if sys.platform != "win32":
         return
-    if not force and not widget.isVisible():
+    del force  # раньше force применял chrome к скрытым окнам и ломал рамку
+    # Не трогаем HWND до первого реального показа: SetWindowPos(FRAMECHANGED)
+    # на скрытом окне ломает non-client metrics (сдвиг контента, чёрная полоса).
+    if not widget.isVisible():
         return
     try:
         import ctypes
@@ -206,14 +209,15 @@ def apply_window_chrome(widget: QWidget, *, theme: str, force: bool = False) -> 
 
 
 def schedule_window_chrome(widget: QWidget, *, theme: str, force: bool = False) -> None:
-    """Применяет оформление заголовка (один раз при показе окна)."""
-    apply_window_chrome(widget, theme=theme, force=force)
-    if not force and not widget.isVisible():
+    """Применяет оформление заголовка после того, как окно стало видимым."""
+    del force  # совместимость вызовов; chrome только на видимых окнах
+    apply_window_chrome(widget, theme=theme)
+    if widget.isVisible():
         from PySide6.QtCore import QTimer
 
         QTimer.singleShot(
             0,
-            lambda w=widget, t=theme: apply_window_chrome(w, theme=t, force=True),
+            lambda w=widget, t=theme: apply_window_chrome(w, theme=t),
         )
 
 
@@ -245,4 +249,5 @@ def _apply_pending_chrome_refresh() -> None:
     if app is None:
         return
     for widget in app.topLevelWidgets():
-        apply_window_chrome(widget, theme=theme, force=True)
+        if widget.isVisible():
+            apply_window_chrome(widget, theme=theme)

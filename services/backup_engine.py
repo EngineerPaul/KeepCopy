@@ -5,12 +5,13 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import time
 import zipfile
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum, auto
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from models.task import CopyMode, Task
 from services.file_matcher import FileEntry, FileMatcher
@@ -21,6 +22,11 @@ from services.path_utils import (
     source_folder_name,
     to_long_path,
 )
+
+# on_source(current_1based, source_path, sources_total)
+SourceProgressCallback = Callable[[int, str, int], None]
+# on_copy(current_1based, source_path, sources_total, percent_0_100)
+CopyProgressCallback = Callable[[int, str, int, int], None]
 
 
 class BackupResultKind(Enum):
@@ -67,6 +73,64 @@ class BackupResult:
         return sum(r.files_copied for r in self.source_results)
 
 
+class _BytesProgress:
+    """Редко обновляет процент копирования, чтобы не тормозить I/O."""
+
+    def __init__(
+        self,
+        total_bytes: int,
+        sources_total: int,
+        on_progress: Optional[CopyProgressCallback],
+        *,
+        min_interval_sec: float = 0.35,
+    ) -> None:
+        self._total = max(total_bytes, 0)
+        self._sources_total = sources_total
+        self._on_progress = on_progress
+        self._min_interval = min_interval_sec
+        self._done = 0
+        self._last_emit = 0.0
+        self._last_percent = -1
+        self._source_index = 1
+        self._source_path = ""
+
+    def set_source(self, index: int, path: str) -> None:
+        """Переключает текущий источник и сразу обновляет статус."""
+        self._source_index = index
+        self._source_path = path
+        self._emit(force=True)
+
+    def add_bytes(self, size: int) -> None:
+        """Учитывает успешно скопированный объём."""
+        if size > 0:
+            self._done += size
+        self._emit(force=False)
+
+    def _percent(self) -> int:
+        if self._total <= 0:
+            return 100
+        return min(100, int(100 * self._done / self._total))
+
+    def _emit(self, *, force: bool) -> None:
+        if self._on_progress is None:
+            return
+        percent = self._percent()
+        now = time.monotonic()
+        if not force:
+            if percent == self._last_percent:
+                return
+            if now - self._last_emit < self._min_interval and percent < 100:
+                return
+        self._last_emit = now
+        self._last_percent = percent
+        self._on_progress(
+            self._source_index,
+            self._source_path,
+            self._sources_total,
+            percent,
+        )
+
+
 class BackupEngine:
     """Выполнение резервного копирования."""
 
@@ -81,10 +145,14 @@ class BackupEngine:
         """
         self.logger = logger or BackupLogger()
 
-    def calculate_task_size(self, task: Task) -> int:
+    def calculate_task_size(
+        self,
+        task: Task,
+        on_source: Optional[SourceProgressCallback] = None,
+    ) -> int:
         """Подсчитывает общий размер файлов задачи для кэша."""
         matcher = FileMatcher(task)
-        return matcher.calculate_size()
+        return matcher.calculate_size(on_source=on_source)
 
     def calculate_copy_size(self, task: Task) -> int:
         """Подсчитывает размер файлов для предстоящего копирования."""
@@ -126,16 +194,25 @@ class BackupEngine:
         """Создаёт директорию при необходимости."""
         os.makedirs(to_long_path(path), exist_ok=True)
 
-    def _copy_file(self, src: str, dst: str) -> None:
+    def _copy_file(
+        self,
+        src: str,
+        dst: str,
+        on_bytes: Optional[Callable[[int], None]] = None,
+        size: int = 0,
+    ) -> None:
         """Копирует один файл без изменения источника."""
         dst_dir = os.path.dirname(dst)
         self._ensure_dir(dst_dir)
         shutil.copy2(to_long_path(src), to_long_path(dst))
+        if on_bytes is not None:
+            on_bytes(size)
 
     def _copy_entries_flat(
         self,
         entries: list[FileEntry],
         dest_root: str,
+        on_bytes: Optional[Callable[[int], None]] = None,
     ) -> list[tuple[str, str]]:
         """Копирует файлы в dest_root с сохранением структуры."""
         skipped: list[tuple[str, str]] = []
@@ -152,7 +229,12 @@ class BackupEngine:
                 continue
             dst = os.path.join(dest_root, entry.relative_path)
             try:
-                self._copy_file(entry.absolute_path, dst)
+                self._copy_file(
+                    entry.absolute_path,
+                    dst,
+                    on_bytes=on_bytes,
+                    size=entry.size,
+                )
             except OSError as e:
                 skipped.append((entry.absolute_path, str(e)))
         return skipped
@@ -161,6 +243,7 @@ class BackupEngine:
         self,
         zip_path: str,
         entries: list[FileEntry],
+        on_bytes: Optional[Callable[[int], None]] = None,
     ) -> list[tuple[str, str]]:
         """Добавляет файлы в zip-архив."""
         skipped: list[tuple[str, str]] = []
@@ -183,6 +266,8 @@ class BackupEngine:
                     arcname = entry.relative_path.replace("\\", "/")
                     try:
                         zf.write(to_long_path(entry.absolute_path), arcname)
+                        if on_bytes is not None:
+                            on_bytes(entry.size)
                     except OSError as e:
                         skipped.append((entry.absolute_path, str(e)))
         except OSError as e:
@@ -197,6 +282,7 @@ class BackupEngine:
         self,
         zip_path: str,
         entries: list[FileEntry],
+        on_bytes: Optional[Callable[[int], None]] = None,
     ) -> list[tuple[str, str]]:
         """Создаёт новый zip-архив."""
         skipped: list[tuple[str, str]] = []
@@ -210,6 +296,8 @@ class BackupEngine:
                     arcname = entry.relative_path.replace("\\", "/")
                     try:
                         zf.write(to_long_path(entry.absolute_path), arcname)
+                        if on_bytes is not None:
+                            on_bytes(entry.size)
                     except OSError as e:
                         skipped.append((entry.absolute_path, str(e)))
         except OSError as e:
@@ -237,6 +325,7 @@ class BackupEngine:
         source: str,
         entries: list[FileEntry],
         run_date: date,
+        on_bytes: Optional[Callable[[int], None]] = None,
     ) -> SourceBackupResult:
         """Копирует один источник согласно режиму задачи."""
         skipped: list[tuple[str, str]] = []
@@ -248,9 +337,9 @@ class BackupEngine:
                 return SourceBackupResult(source, BackupResultKind.SUCCESS, [], 0)
             if task.compress:
                 zip_path = dest_base + ".zip"
-                skipped = self._add_to_zip(zip_path, entries)
+                skipped = self._add_to_zip(zip_path, entries, on_bytes=on_bytes)
             else:
-                skipped = self._copy_entries_flat(entries, dest_base)
+                skipped = self._copy_entries_flat(entries, dest_base, on_bytes=on_bytes)
             files_copied = len(self._file_entries_only(entries)) - len(skipped)
 
         elif task.copy_mode in (CopyMode.LAYERED, CopyMode.DUPLICATE):
@@ -264,13 +353,13 @@ class BackupEngine:
                 zip_path = os.path.join(dest_base, f"{layer_name}.zip")
                 file_entries = self._file_entries_only(entries)
                 if file_entries or task.copy_mode == CopyMode.DUPLICATE:
-                    skipped = self._create_zip(zip_path, entries)
+                    skipped = self._create_zip(zip_path, entries, on_bytes=on_bytes)
                     files_copied = len(file_entries) - len(
                         [s for s in skipped if not s[0].endswith(".zip")]
                     )
             else:
                 layer_path = os.path.join(dest_base, layer_name)
-                skipped = self._copy_entries_flat(entries, layer_path)
+                skipped = self._copy_entries_flat(entries, layer_path, on_bytes=on_bytes)
                 files_copied = len(self._file_entries_only(entries)) - len(skipped)
         else:
             return SourceBackupResult(source, BackupResultKind.SUCCESS, [], 0)
@@ -284,6 +373,7 @@ class BackupEngine:
         *,
         automatic: bool = False,
         run_datetime: Optional[datetime] = None,
+        on_progress: Optional[CopyProgressCallback] = None,
     ) -> BackupResult:
         """
         Выполняет резервное копирование задачи.
@@ -292,6 +382,7 @@ class BackupEngine:
             task: Задача.
             automatic: Автоматический запуск (обновляет След.вып.).
             run_datetime: Время запуска.
+            on_progress: Колбэк прогресса (источник и процент по объёму).
 
         Returns:
             Результат выполнения.
@@ -339,10 +430,18 @@ class BackupEngine:
 
         source_results: list[SourceBackupResult] = []
         all_skipped: list[tuple[str, str]] = []
+        progress = _BytesProgress(total_size, len(task.sources), on_progress)
 
-        for source in task.sources:
+        for index, source in enumerate(task.sources, 1):
             entries = files_by_source.get(source, [])
-            result = self._copy_source(task, source, entries, run_date)
+            progress.set_source(index, source)
+            result = self._copy_source(
+                task,
+                source,
+                entries,
+                run_date,
+                on_bytes=progress.add_bytes,
+            )
             source_results.append(result)
             all_skipped.extend(result.skipped)
 

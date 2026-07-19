@@ -494,6 +494,7 @@ class TaskDialog(QDialog):
 
         self._description = QTextEdit()
         self._description.setMaximumHeight(72)
+        self._description.document().setDocumentMargin(2)
         desc_layout.addWidget(QLabel("Описание:"))
         desc_layout.addWidget(self._description)
 
@@ -608,7 +609,7 @@ class TaskDialog(QDialog):
         self._copy_mode = NoWheelComboBox()
         for mode in CopyMode:
             self._copy_mode.addItem(mode.label, mode.value)
-        self._copy_mode.setFixedWidth(150)
+        self._copy_mode.setFixedWidth(160)
         extra_layout.addRow("Режим копирования:", self._copy_mode)
 
         extra_section.body_layout.addLayout(extra_layout)

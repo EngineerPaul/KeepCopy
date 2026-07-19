@@ -14,6 +14,13 @@ from workers.backup_worker import BackupWorker
 from workers.size_scan_worker import SizeScanWorker
 
 
+def _short_source(path: str, max_len: int = 72) -> str:
+    """Сокращает длинный путь источника для строки статуса."""
+    if len(path) <= max_len:
+        return path
+    return "…" + path[-(max_len - 1) :]
+
+
 class TaskQueueManager(QObject):
     """Последовательное выполнение задач в фоне."""
 
@@ -63,6 +70,7 @@ class TaskQueueManager(QObject):
     def scan_task_size(self, task: Task) -> None:
         """Запускает подсчёт размера одной задачи."""
         worker = SizeScanWorker(task, self)
+        worker.progress.connect(self._on_scan_progress)
         worker.finished_scan.connect(self._on_startup_scan_done)
         worker.start()
 
@@ -76,10 +84,13 @@ class TaskQueueManager(QObject):
     def _scan_startup_next(self) -> None:
         """Подсчитывает размер следующей задачи при старте."""
         if self._startup_index >= len(self._startup_tasks):
+            if not self._busy:
+                self.status_changed.emit("")
             return
         task = self._startup_tasks[self._startup_index]
         self._startup_index += 1
         worker = SizeScanWorker(task, self)
+        worker.progress.connect(self._on_scan_progress)
         worker.finished_scan.connect(self._on_startup_scan_done)
         worker.finished.connect(self._scan_startup_next)
         worker.start()
@@ -106,17 +117,24 @@ class TaskQueueManager(QObject):
         task, automatic = self._queue.pop(0)
         self._current_task = task
         self._current_automatic = automatic
-        self.status_changed.emit(
-            f"Задача {task.name}: подсчёт (источник 1 из {len(task.sources)})"
-        )
         self._start_scan_for_backup(task)
 
     def _start_scan_for_backup(self, task: Task) -> None:
         """Запускает подсчёт перед копированием."""
         self._current_scan = SizeScanWorker(task, self)
+        self._current_scan.progress.connect(self._on_scan_progress)
         self._current_scan.finished_scan.connect(self._on_pre_backup_scan)
         self._current_scan.error.connect(self._on_pre_backup_scan_error)
         self._current_scan.start()
+
+    def _on_scan_progress(
+        self, task_name: str, source: str, current: int, total: int
+    ) -> None:
+        """Обновляет статус подсчёта размера по текущему источнику."""
+        self.status_changed.emit(
+            f"Задача {task_name}: подсчёт — {_short_source(source)} "
+            f"({current} из {total})"
+        )
 
     def _on_pre_backup_scan_error(self, task_id: str, message: str) -> None:
         """Продолжает копирование, если подсчёт размера не удался."""
@@ -130,9 +148,6 @@ class TaskQueueManager(QObject):
         self._storage.update_task_size(task_id, size)
         self.task_size_updated.emit(task_id, size)
         task = self._current_task
-        self.status_changed.emit(
-            f"Задача {task.name}: копирование (источник 1 из {len(task.sources)})"
-        )
         self._current_backup = BackupWorker(
             task, automatic=self._current_automatic, parent=self
         )
@@ -142,11 +157,17 @@ class TaskQueueManager(QObject):
         self._current_backup.start()
 
     def _on_backup_progress(
-        self, task_name: str, phase: str, current: int, total: int
+        self,
+        task_name: str,
+        source: str,
+        current: int,
+        total: int,
+        percent: int,
     ) -> None:
-        """Обновляет статус копирования."""
+        """Обновляет статус копирования: источник и процент по объёму."""
         self.status_changed.emit(
-            f"Задача {task_name}: {phase} (источник {current} из {total})"
+            f"Задача {task_name}: копирование — {_short_source(source)} "
+            f"({current} из {total}) — {percent}%"
         )
 
     def _on_backup_done(self, task_id: str, result: BackupResult) -> None:

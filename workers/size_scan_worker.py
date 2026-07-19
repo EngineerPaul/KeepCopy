@@ -11,6 +11,8 @@ from services.backup_engine import BackupEngine
 class SizeScanWorker(QThread):
     """Поток подсчёта размера одной задачи."""
 
+    # task_name, source_path, current, total
+    progress = Signal(str, str, int, int)
     finished_scan = Signal(str, "qint64")  # task_id, size (bytes)
     error = Signal(str, str)
 
@@ -23,7 +25,10 @@ class SizeScanWorker(QThread):
     def run(self) -> None:
         """Выполняет подсчёт размера."""
         try:
-            size = self._engine.calculate_task_size(self._task)
+            def on_source(current: int, source: str, total: int) -> None:
+                self.progress.emit(self._task.name, source, current, total)
+
+            size = self._engine.calculate_task_size(self._task, on_source=on_source)
             self.finished_scan.emit(self._task.id, size)
         except Exception as e:
             self.error.emit(self._task.id, str(e))

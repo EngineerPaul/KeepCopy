@@ -301,7 +301,7 @@ def _text_view_stylesheet(theme: str) -> str:
         f" color: {fg};"
         f" border: 1px solid {border};"
         f" border-radius: 6px;"
-        f" padding: 8px;"
+        f" padding: 4px;"
         f"}}"
         f"QTextEdit#themedTextView QAbstractScrollArea::viewport,"
         f"QTextBrowser#themedTextView QAbstractScrollArea::viewport {{"
@@ -710,7 +710,7 @@ def _build_stylesheet(p: ThemePalette, fs: int) -> str:
         color: {p.text};
         border: 1px solid {p.border};
         border-radius: 6px;
-        padding: 8px;
+        padding: 4px;
     }}
     QTextEdit#themedTextView,
     QTextBrowser#themedTextView {{
@@ -718,7 +718,7 @@ def _build_stylesheet(p: ThemePalette, fs: int) -> str:
         color: {p.text};
         border: 1px solid {p.border};
         border-radius: 6px;
-        padding: 8px;
+        padding: 4px;
     }}
     QComboBox::drop-down {{
         border: none;

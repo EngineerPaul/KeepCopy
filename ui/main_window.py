@@ -697,14 +697,6 @@ class MainWindow(QMainWindow):
         apply_window_theme(self, self._settings.theme)
         schedule_window_chrome(self, theme=self._settings.theme)
 
-    def closeEvent(self, event) -> None:
-        """В фоновом режиме скрывает окно вместо выхода."""
-        if self._background_mode and not self._force_quit:
-            event.ignore()
-            self.hide()
-            return
-        super().closeEvent(event)
-
     def show_window(self) -> None:
         """Показывает и активирует главное окно."""
         if self.isMinimized():
@@ -712,10 +704,14 @@ class MainWindow(QMainWindow):
         self.show()
         self.raise_()
         self.activateWindow()
+        # После первого показа из трея HWND уже с корректной рамкой —
+        # повторно подтягиваем тему заголовка.
+        schedule_window_chrome(self, theme=self._settings.theme)
 
     def quit_application(self) -> None:
         """Полностью завершает приложение."""
         self._force_quit = True
+        self._scheduler.stop()
         QApplication.instance().quit()
 
     def _on_status(self, text: str) -> None:
@@ -764,6 +760,10 @@ class MainWindow(QMainWindow):
         self._table.viewport().update()
 
     def closeEvent(self, event) -> None:
-        """Останавливает планировщик при закрытии."""
+        """В фоновом режиме скрывает в трей; иначе останавливает планировщик и закрывает."""
+        if self._background_mode and not self._force_quit:
+            event.ignore()
+            self.hide()
+            return
         self._scheduler.stop()
         super().closeEvent(event)

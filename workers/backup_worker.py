@@ -12,7 +12,8 @@ from services.scheduler import SchedulerService
 class BackupWorker(QThread):
     """Поток выполнения резервного копирования одной задачи."""
 
-    progress = Signal(str, str, int, int)  # task_name, phase, current, total
+    # task_name, source_path, current, total, percent
+    progress = Signal(str, str, int, int, int)
     finished_backup = Signal(str, object)  # task_id, BackupResult
     error = Signal(str, str)
 
@@ -31,15 +32,18 @@ class BackupWorker(QThread):
     def run(self) -> None:
         """Выполняет копирование."""
         try:
-            total = len(self._task.sources)
-            for i, source in enumerate(self._task.sources, 1):
+            def on_progress(
+                current: int, source: str, total: int, percent: int
+            ) -> None:
                 self.progress.emit(
-                    self._task.name,
-                    "копирование",
-                    i,
-                    total,
+                    self._task.name, source, current, total, percent
                 )
-            result = self._engine.run(self._task, automatic=self._automatic)
+
+            result = self._engine.run(
+                self._task,
+                automatic=self._automatic,
+                on_progress=on_progress,
+            )
             if result.update_last_run:
                 from datetime import datetime
 
