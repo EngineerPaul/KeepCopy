@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QSizeGrip,
     QStatusBar,
+    QSystemTrayIcon,
     QTableWidgetItem,
     QToolBar,
     QToolButton,
@@ -56,6 +57,7 @@ from ui.main_table import (
 from ui.message_box import information, question, warning
 from ui.settings_dialog import SettingsDialog
 from ui.task_dialog import TaskDialog
+from ui.app_tray import AppTray
 from ui.themes import apply_window_theme, get_palette, refresh_theme_for_app
 from ui.window_chrome import schedule_window_chrome
 from workers.auto_scheduler import AutoScheduler
@@ -709,9 +711,40 @@ class MainWindow(QMainWindow):
             self._storage.set_settings(self._settings)
             self._storage.save()
             apply_autostart(self._settings.autostart)
+            self._sync_background_close_mode()
             self._apply_settings()
             self._rebuild_columns()
             self._refresh_table()
+
+    def _should_minimize_to_tray(self) -> bool:
+        """Закрытие окна уводит в фон при автозапуске или старте с --background."""
+        return bool(self._settings.autostart or self._background_mode)
+
+    def _sync_background_close_mode(self) -> None:
+        """Включает/выключает трей и поведение «закрыть → в фон»."""
+        app = QApplication.instance()
+        if app is None:
+            return
+        want = self._should_minimize_to_tray()
+        app.setQuitOnLastWindowClosed(not want)
+        tray = getattr(app, "_tray", None)
+        if want:
+            if tray is None:
+                if QSystemTrayIcon.isSystemTrayAvailable():
+                    app._tray = AppTray(self, app)  # type: ignore[attr-defined]
+            else:
+                tray.show_icon()
+        elif tray is not None and not self._background_mode:
+            tray.hide()
+            app._tray = None  # type: ignore[attr-defined]
+
+    def _ensure_tray(self) -> None:
+        """Гарантирует наличие иконки в трее перед скрытием окна."""
+        app = QApplication.instance()
+        if app is None:
+            return
+        if getattr(app, "_tray", None) is None and QSystemTrayIcon.isSystemTrayAvailable():
+            app._tray = AppTray(self, app)  # type: ignore[attr-defined]
 
     def _on_help(self) -> None:
         """Открывает справку."""
@@ -804,8 +837,9 @@ class MainWindow(QMainWindow):
         self._table.viewport().update()
 
     def closeEvent(self, event) -> None:
-        """В фоновом режиме скрывает в трей; иначе останавливает планировщик и закрывает."""
-        if self._background_mode and not self._force_quit:
+        """При автозапуске / --background скрывает в трей; иначе закрывает."""
+        if self._should_minimize_to_tray() and not self._force_quit:
+            self._ensure_tray()
             event.ignore()
             self.hide()
             return

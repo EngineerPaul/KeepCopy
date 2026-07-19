@@ -41,27 +41,35 @@ def main() -> int:
 
     app = QApplication(sys.argv)
     app.setApplicationName("Архиватор")
-    app.setQuitOnLastWindowClosed(not background)
     setup_application_style(app)
     icon = app_icon()
     if not icon.isNull():
         app.setWindowIcon(icon)
     install_interactive_cursors(app)
 
-    if background and not QSystemTrayIcon.isSystemTrayAvailable():
-        print("Системный трей недоступен.", file=sys.stderr)
-        return 1
-
     storage = StorageService()
     storage.load()
     reconcile_autostart(storage)
 
+    # С автозапуском закрытие окна оставляет процесс в трее и при обычном старте.
+    stay_in_background = background or storage.get_settings().autostart
+    if stay_in_background and not QSystemTrayIcon.isSystemTrayAvailable():
+        if background:
+            print("Системный трей недоступен.", file=sys.stderr)
+            return 1
+        stay_in_background = False
+
+    app.setQuitOnLastWindowClosed(not stay_in_background)
+
     window = MainWindow(storage, start_hidden=background)
     apply_pointing_hand_cursors(window)
 
-    if background:
-        _warmup_hidden_window(window)
+    if stay_in_background:
         app._tray = AppTray(window, app)  # type: ignore[attr-defined]
+        if background:
+            _warmup_hidden_window(window)
+        else:
+            window.show()
     else:
         window.show()
 

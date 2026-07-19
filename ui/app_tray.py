@@ -37,6 +37,14 @@ class AppTray:
         self._tray.activated.connect(self._on_activated)
         self._tray.show()
 
+    def hide(self) -> None:
+        """Скрывает иконку трея."""
+        self._tray.hide()
+
+    def show_icon(self) -> None:
+        """Показывает иконку трея."""
+        self._tray.show()
+
     def show_window(self) -> None:
         """Показывает главное окно."""
         self._window.show_window()
