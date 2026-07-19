@@ -5,13 +5,7 @@ from __future__ import annotations
 import html
 from typing import Optional
 
-from PySide6.QtCore import (
-    QAbstractAnimation,
-    QEvent,
-    QPropertyAnimation,
-    Qt,
-    QTimer,
-)
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QColor, QCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -234,6 +228,10 @@ class MainWindow(QMainWindow):
     def _refresh_table(self) -> None:
         """Обновляет содержимое таблицы."""
         selected = list(self._selected_ids)
+        # Старая анимация могла испортить defaultSectionSize всей таблицы.
+        header = self._table.verticalHeader()
+        if header.defaultSectionSize() < 16:
+            header.setDefaultSectionSize(max(header.minimumSectionSize(), 24))
         self._table.setRowCount(0)
         self._table.clear_row_registry()
         self._detail_rows.clear()
@@ -391,11 +389,11 @@ class MainWindow(QMainWindow):
                 item.setToolTip(tip)
 
     def _insert_detail_rows(self, row: int, task: Task) -> int:
-        """Вставляет развёрнутые строки источников/исключений."""
+        """Вставляет доп. строки источников/исключений (без первого — он в строке задачи)."""
         details = []
-        for src in task.sources:
+        for src in task.sources[1:]:
             details.append(("sources", src))
-        for exc in task.exclusions:
+        for exc in task.exclusions[1:]:
             details.append(("exclusions", exc))
         if not details:
             return row
@@ -529,25 +527,14 @@ class MainWindow(QMainWindow):
         menu.exec(self._table.viewport().mapToGlobal(pos))
 
     def _expand_task(self, task_id: str) -> None:
-        """Разворачивает детали задачи с анимацией."""
+        """Разворачивает детали задачи."""
         self._expanded.add(task_id)
         self._refresh_table()
-        self._animate_expand(task_id)
 
     def _collapse_task(self, task_id: str) -> None:
         """Сворачивает детали задачи."""
         self._expanded.discard(task_id)
         self._refresh_table()
-
-    def _animate_expand(self, task_id: str) -> None:
-        """Анимация раскрытия строк (0.5 сек)."""
-        for row in self._detail_rows.get(task_id, []):
-            self._table.setRowHeight(row, 0)
-            anim = QPropertyAnimation(self._table.verticalHeader(), b"defaultSectionSize")
-            anim.setDuration(500)
-            anim.setStartValue(0)
-            anim.setEndValue(24)
-            anim.start(QAbstractAnimation.DeleteWhenStopped)
 
     def _install_selection_clear_filter(self, root: QWidget) -> None:
         """Снимает выделение при клике вне таблицы."""

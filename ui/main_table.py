@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QSizePolicy,
+    QStyle,
+    QStyleOptionViewItem,
     QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
@@ -20,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from ui.icons import edit_icon, pause_icon, play_icon, remove_icon, remove_icon_white
 from ui.themes import ThemeColors, apply_table_theme, delete_button_style, get_theme_colors, icon_button_style
+from ui.widgets import ActionCellContainer
 
 UI_ROW_NUM = "__row_num__"
 
@@ -121,6 +124,13 @@ class MainTableDelegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index) -> None:
         """Рисует ячейку с фоном строки и обрезкой по элементам."""
+        # Своё выделение строк; флаги Qt Selected/HasFocus дают «подсветку ячейки».
+        opt = QStyleOptionViewItem(option)
+        opt.state &= ~(
+            QStyle.StateFlag.State_Selected
+            | QStyle.StateFlag.State_HasFocus
+            | QStyle.StateFlag.State_MouseOver
+        )
         row = index.row()
         col_key = self._col_key(index.column())
         selected = self._table.is_row_selected(row)
@@ -128,17 +138,17 @@ class MainTableDelegate(QStyledItemDelegate):
 
         painter.save()
         if bg is not None:
-            painter.fillRect(option.rect, bg)
+            painter.fillRect(opt.rect, bg)
 
         if col_key in _ELIDE_COLS:
-            self._paint_elided(painter, option, index, col_key, selected)
+            self._paint_elided(painter, opt, index, col_key, selected)
         else:
             text = str(index.data(Qt.ItemDataRole.DisplayRole) or "")
             align = Qt.AlignmentFlag.AlignCenter if col_key in _CENTERED_COLS else (
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
             )
             painter.setPen(self._text_color(index, selected))
-            painter.drawText(option.rect.adjusted(4, 0, -4, 0), int(align), text)
+            painter.drawText(opt.rect.adjusted(4, 0, -4, 0), int(align), text)
         painter.restore()
 
     def _paint_elided(
@@ -193,7 +203,9 @@ class MainTableWidget(QTableWidget):
         self.viewport().setMouseTracking(True)
         self.viewport().installEventFilter(self)
         self.installEventFilter(self)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setItemDelegate(MainTableDelegate(self))
         self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self._theme = "light"
@@ -202,6 +214,8 @@ class MainTableWidget(QTableWidget):
         """Задаёт тему отрисовки таблицы."""
         self._theme = theme
         apply_table_theme(self, theme)
+        for row in range(self.rowCount()):
+            self._apply_row_widget_bg(row)
         self.viewport().update()
 
     def theme_colors(self) -> ThemeColors:
@@ -397,13 +411,26 @@ class MainTableWidget(QTableWidget):
         has_modifier = bool(
             mods & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
         )
+        # Сначала Qt (cellClicked и т.п.), затем своё выделение строки.
+        super().mousePressEvent(event)
+        if event.button() != Qt.MouseButton.LeftButton:
+            self._clear_qt_current_cell()
+            return
         if row in self._task_row_ids:
             self._apply_selection_click(row, mods)
             self._notify_selection_changed()
         elif (row < 0 or row in self._detail_rows) and not has_modifier:
             self.clear_selection()
             self._notify_selection_changed()
-        super().mousePressEvent(event)
+        # Иначе Qt оставляет «текущую ячейку» — визуально как выделение одной клетки.
+        self._clear_qt_current_cell()
+
+    def _clear_qt_current_cell(self) -> None:
+        """Сбрасывает системное текущее/выделенное состояние Qt."""
+        from PySide6.QtCore import QModelIndex
+
+        self.setCurrentIndex(QModelIndex())
+        QAbstractItemView.clearSelection(self)
 
     def _sorted_task_rows(self) -> list[int]:
         """Строки задач в порядке отображения."""
@@ -512,25 +539,34 @@ class MainTableWidget(QTableWidget):
         self.viewport().update()
 
     def _apply_row_widget_bg(self, row: int) -> None:
-        """Задаёт фон контейнера кнопок действий."""
+        """Подсвечивает контейнер кнопок: select и hover, как у остальных ячеек."""
         ci = self.col_index("actions")
         if ci < 0:
             return
         widget = self.cellWidget(row, ci)
-        if widget is None:
+        if not isinstance(widget, ActionCellContainer):
             return
-        bg = self._row_bg_color(row)
-        if bg is None:
-            widget.setStyleSheet("background: transparent;")
-        else:
-            widget.setStyleSheet(f"background-color: {bg.name()};")
+        widget.set_row_chrome(
+            base=self._row_base_color(row),
+            highlight=self._row_bg_color(row),
+        )
+
+    def _row_base_color(self, row: int) -> QColor:
+        """Фон строки без select/hover (с учётом чередования цветов)."""
+        pal = self.palette()
+        if self.alternatingRowColors() and row % 2 == 1:
+            return pal.color(QPalette.ColorRole.AlternateBase)
+        return pal.color(QPalette.ColorRole.Base)
 
     def _row_bg_color(self, row: int) -> Optional[QColor]:
-        """Фон контейнера кнопок: только при выделении строки, не при hover."""
+        """Фон контейнера кнопок: выделение (фокус) или наведение."""
         if row in self._detail_rows:
             return None
+        colors = self.theme_colors()
         if row in self._selected_rows:
-            return _SELECT_BG
+            return colors.select_bg
+        if row == self._hover_row:
+            return colors.hover_bg
         return None
 
 
@@ -548,7 +584,11 @@ def make_table_item(
 ) -> QTableWidgetItem:
     """Создаёт ячейку таблицы задач."""
     item = QTableWidgetItem(text)
-    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+    item.setFlags(
+        item.flags()
+        & ~Qt.ItemFlag.ItemIsEditable
+        & ~Qt.ItemFlag.ItemIsSelectable
+    )
     if centered:
         item.setTextAlignment(
             Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
@@ -578,8 +618,7 @@ def make_actions_widget(
     theme: str = "light",
 ) -> QWidget:
     """Создаёт центрированный блок кнопок действий."""
-    container = QWidget()
-    container.setAutoFillBackground(False)
+    container = ActionCellContainer()
     container.setSizePolicy(
         QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
     )

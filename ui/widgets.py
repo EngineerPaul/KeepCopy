@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QLabel, QSpinBox
+from PySide6.QtGui import QColor, QPainter
+from PySide6.QtWidgets import QComboBox, QLabel, QSpinBox, QWidget
 
 
 class NoWheelComboBox(QComboBox):
@@ -23,6 +26,47 @@ class NoSelectStepSpinBox(QSpinBox):
             editor.deselect()
             editor.setCursorPosition(len(editor.text()))
 
+
+class ActionCellContainer(QWidget):
+    """Контейнер кнопок в ячейке: фон строки (select/hover) без смены QSS."""
+
+    def __init__(self, parent=None) -> None:
+        """Создаёт контейнер с полной отрисовкой фона ячейки."""
+        super().__init__(parent)
+        self._base_bg = QColor()
+        self._highlight_bg: Optional[QColor] = None
+        self.setAutoFillBackground(False)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
+        # Рисуем все пиксели сами: и базовый фон таблицы, и select/hover.
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
+
+    def set_row_chrome(
+        self,
+        *,
+        base: QColor,
+        highlight: Optional[QColor],
+    ) -> None:
+        """Задаёт фон таблицы и поверх — выделение или hover (с альфой)."""
+        new_base = QColor(base) if base.isValid() else QColor()
+        new_hi = (
+            QColor(highlight)
+            if highlight is not None and highlight.isValid()
+            else None
+        )
+        if self._base_bg == new_base and self._highlight_bg == new_hi:
+            return
+        self._base_bg = new_base
+        self._highlight_bg = new_hi
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        """Сначала фон таблицы, затем select/hover (как у делегата строки)."""
+        painter = QPainter(self)
+        rect = self.rect()
+        if self._base_bg.isValid():
+            painter.fillRect(rect, self._base_bg)
+        if self._highlight_bg is not None:
+            painter.fillRect(rect, self._highlight_bg)
 
 def static_label(text: str) -> QLabel:
     """Метка без выделения текста мышью."""

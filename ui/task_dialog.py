@@ -63,7 +63,7 @@ from ui.themes import (
     delete_button_style,
     get_theme_colors,
 )
-from ui.widgets import NoSelectStepSpinBox, NoWheelComboBox
+from ui.widgets import ActionCellContainer, NoSelectStepSpinBox, NoWheelComboBox
 from ui.window_chrome import schedule_window_chrome
 
 _COL_NUM = 0
@@ -147,6 +147,9 @@ class RowHighlightDelegate(QStyledItemDelegate):
         row = index.row()
         col = index.column()
         if col == _COL_ACTION:
+            painter.save()
+            self._paint_background(painter, option, row)
+            painter.restore()
             return
         painter.save()
         self._paint_background(painter, option, row)
@@ -199,7 +202,7 @@ class ListTableWidget(QTableWidget):
         """Задаёт тему отрисовки таблицы."""
         self._theme = theme
         apply_table_theme(self, theme)
-        self.viewport().update()
+        self._refresh_row_visuals()
 
     def theme_colors(self) -> ThemeColors:
         """Палитра текущей темы."""
@@ -323,16 +326,43 @@ class ListTableWidget(QTableWidget):
         """Обновляет лёгкую подсветку строки при наведении."""
         if row == self._hover_row:
             return
+        old = self._hover_row
         self._hover_row = row
-        self._refresh_row_visuals()
+        self._refresh_row_visuals(old, row)
 
     def _on_selection_changed(self) -> None:
         """Перерисовывает строки при смене выделения (выделение не сбрасывается)."""
         self._refresh_row_visuals()
 
-    def _refresh_row_visuals(self) -> None:
-        """Перерисовывает строки (фон рисует делегат, не кнопки)."""
+    def _refresh_row_visuals(self, *rows: int) -> None:
+        """Перерисовывает строки и фон ячеек с кнопкой удаления."""
+        if rows:
+            targets = {r for r in rows if r >= 0}
+        else:
+            targets = set(range(self.rowCount()))
+        for row in targets:
+            self._apply_action_widget_bg(row)
         self.viewport().update()
+
+    def _row_highlight_bg(self, row: int) -> Optional[QColor]:
+        """Фон строки при выделении или наведении."""
+        if row < 0:
+            return None
+        colors = self.theme_colors()
+        selected = self.selectionModel().isRowSelected(row, self.rootIndex())
+        if selected:
+            return colors.select_bg
+        if row == self._hover_row:
+            return colors.hover_bg
+        return None
+
+    def _apply_action_widget_bg(self, row: int) -> None:
+        """Подсвечивает контейнер кнопки: select (фокус) и hover."""
+        widget = self.cellWidget(row, _COL_ACTION)
+        if not isinstance(widget, ActionCellContainer):
+            return
+        base = self.palette().color(QPalette.ColorRole.Base)
+        widget.set_row_chrome(base=base, highlight=self._row_highlight_bg(row))
 
 
 class CollapsibleSection(QWidget):
@@ -851,7 +881,7 @@ class TaskDialog(QDialog):
         """Создаёт центрированную кнопку удаления строки."""
         btn = DeleteRowButton()
         btn.clicked.connect(callback)
-        container = QWidget()
+        container = ActionCellContainer()
         container.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )

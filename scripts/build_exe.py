@@ -68,6 +68,7 @@ def main() -> int:
             print(f"Восстановлен: {dist_dir / 'settings.json'}")
 
         print(f"Готово: {dist_dir / 'Archiver.exe'}")
+    print("Формирование запускаемого .exe файла выполнено!")
     return 0
 
 

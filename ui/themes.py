@@ -562,6 +562,13 @@ def _table_stylesheet(theme: str) -> str:
         f"QTableWidget::item {{"
         f" background: transparent;"
         f" color: {color('text', theme)};"
+        f" outline: none;"
+        f"}}"
+        f"QTableWidget::item:selected,"
+        f"QTableWidget::item:focus {{"
+        f" background: transparent;"
+        f" color: {color('text', theme)};"
+        f" outline: none;"
         f"}}"
     )
 
@@ -661,6 +668,15 @@ def _build_stylesheet(p: ThemePalette, fs: int) -> str:
         padding: 4px;
         background: transparent;
         color: {p.text};
+        outline: none;
+    }}
+    QTableWidget::item:selected,
+    QTableWidget::item:focus,
+    QTableWidget::item:selected:active,
+    QTableWidget::item:selected:!active {{
+        background: transparent;
+        color: {p.text};
+        outline: none;
     }}
     QHeaderView::section {{
         background-color: {p.header};
