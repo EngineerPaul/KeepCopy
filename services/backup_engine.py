@@ -391,17 +391,17 @@ class BackupEngine:
         run_date = run_datetime.date()
         matcher = FileMatcher(task)
         copy_last_run = task.last_run
-        if automatic and task.last_auto_run is None:
-            copy_last_run = None
-        if not automatic and task.copy_mode == CopyMode.KEEP_CHANGES:
+        if task.copy_mode == CopyMode.DUPLICATE:
+            # Полная копия всех подходящих файлов в новый слой.
+            files_by_source = matcher.collect_for_copy(copy_last_run)
+        else:
+            # keep_changes и layered: новее last_run или ещё нет в архиве.
             dest_bases = {s: self._dest_base(task, s) for s in task.sources}
             files_by_source = matcher.collect_for_copy(
                 copy_last_run,
-                manual=True,
+                include_missing=True,
                 dest_bases=dest_bases,
             )
-        else:
-            files_by_source = matcher.collect_for_copy(copy_last_run)
 
         # Проверка места
         total_size = 0

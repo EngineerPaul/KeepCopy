@@ -41,6 +41,8 @@ class FileMatcher:
         self._max_bytes = (
             int(task.max_size_mb * 1024 * 1024) if task.max_size_mb else None
         )
+        # Индекс файлов в слоях: dest_base → set относительных путей.
+        self._layer_file_index: dict[str, set[str]] = {}
 
     @staticmethod
     def _build_spec(exclusions: list[str]) -> Optional[PathSpec]:
@@ -84,6 +86,8 @@ class FileMatcher:
         if entry.is_dir:
             return False
         rel = entry.relative_path.replace("\\", "/")
+        if self.task.copy_mode == CopyMode.LAYERED:
+            return rel not in self._layered_file_index(dest_base)
         if self.task.compress:
             zip_path = to_long_path(dest_base + ".zip")
             if not os.path.isfile(zip_path):
@@ -93,17 +97,47 @@ class FileMatcher:
         dest = to_long_path(os.path.join(dest_base, entry.relative_path))
         return not os.path.isfile(dest)
 
-    def _collect_manual_keep_changes(
+    def _layered_file_index(self, dest_base: str) -> set[str]:
+        """Множество относительных путей во всех слоях backup_* под dest_base."""
+        cached = self._layer_file_index.get(dest_base)
+        if cached is not None:
+            return cached
+        found: set[str] = set()
+        base = to_long_path(dest_base)
+        if os.path.isdir(base):
+            for name in os.listdir(base):
+                if not name.startswith("backup_"):
+                    continue
+                path = os.path.join(base, name)
+                if name.endswith(".zip") and os.path.isfile(path):
+                    try:
+                        with zipfile.ZipFile(path, "r") as zf:
+                            for arc in zf.namelist():
+                                if arc.endswith("/"):
+                                    continue
+                                found.add(arc.replace("\\", "/"))
+                    except OSError:
+                        continue
+                elif os.path.isdir(path):
+                    for dirpath, _, filenames in os.walk(path):
+                        for filename in filenames:
+                            abs_file = os.path.join(dirpath, filename)
+                            rel = os.path.relpath(abs_file, path).replace("\\", "/")
+                            found.add(rel)
+        self._layer_file_index[dest_base] = found
+        return found
+
+    def _collect_by_date_or_missing(
         self,
         source: str,
         last_run: Optional[datetime],
         dest_base: str,
     ) -> list[FileEntry]:
         """
-        Ручной запуск: по дате или если файла нет в архиве.
+        Файлы новее last_run или отсутствующие в архиве.
 
-        Файл копируется, если дата изменения новее last_run
-        либо одноимённый файл отсутствует в архиве.
+        Для keep_changes архив — dest_base / dest_base.zip.
+        Для layered — любой предыдущий слой backup_* под dest_base.
         """
         entries: list[FileEntry] = []
         for entry in self.iter_entries(source, for_copy=False):
@@ -261,7 +295,7 @@ class FileMatcher:
         self,
         last_run: Optional[datetime] = None,
         *,
-        manual: bool = False,
+        include_missing: bool = False,
         dest_bases: Optional[dict[str, str]] = None,
     ) -> dict[str, list[FileEntry]]:
         """
@@ -269,17 +303,18 @@ class FileMatcher:
 
         Args:
             last_run: Время последнего запуска.
-            manual: Ручной запуск (доп. проверка отсутствия в архиве).
-            dest_bases: Пути назначения по источникам для ручного режима.
+            include_missing: Для keep_changes/layered также брать отсутствующие в архиве.
+            dest_bases: Пути назначения по источникам (нужны при include_missing).
         """
         result: dict[str, list[FileEntry]] = {}
+        use_missing = (
+            include_missing
+            and self.task.copy_mode in (CopyMode.KEEP_CHANGES, CopyMode.LAYERED)
+            and dest_bases is not None
+        )
         for source in self.task.sources:
-            if (
-                manual
-                and self.task.copy_mode == CopyMode.KEEP_CHANGES
-                and dest_bases is not None
-            ):
-                entries = self._collect_manual_keep_changes(
+            if use_missing:
+                entries = self._collect_by_date_or_missing(
                     source,
                     last_run,
                     dest_bases.get(source, ""),
