@@ -35,7 +35,7 @@ COLORS: dict[str, dict[str, str]] = {
     "header_text": {"light": "#1a5563", "dark": "#b8d4dc"},
     "text_disabled": {"light": "#8aa4ad", "dark": "#6a848c"},
     "selection_text": {"light": "#1e3a42", "dark": "#f0f8fa"},
-    "hover_bg": {"light": "#d9f0ec", "dark": "#2f4a52"},
+    "hover_bg": {"light": "#cee4e0", "dark": "#2f4a52"},
     "hover_border": {"light": "#8ec5b8", "dark": "#4a7a86"},
     "pressed_bg": {"light": "#c5e8df", "dark": "#26444c"},
     "selection_bg": {"light": "#b8e0d8", "dark": "#3d6b74"},
@@ -46,6 +46,10 @@ COLORS: dict[str, dict[str, str]] = {
     "focus_border": {"light": "#2d95ad", "dark": "#5a9aaa"},
     "control_border": {"light": "#b0d0da", "dark": "#4a626c"},
     "icon_btn_hover": {"light": "#d9f0ec", "dark": "#3d5a64"},
+    "checkbox_bg": {"light": "#f0f9fb", "dark": "#2a383e"},
+    "checkbox_bg_hover": {"light": "#ffffff", "dark": "#354850"},
+    "checkbox_checked": {"light": "#8ec4ef", "dark": "#39895f"},
+    "checkbox_checked_border": {"light": "#5a9fd4", "dark": "#29724d"},
     "scrollbar_handle": {"light": "#b0d0da", "dark": "#4a626c"},
     "scrollbar_handle_hover": {"light": "#8eb8c4", "dark": "#5a7a86"},
     "error": {"light": "#c62828", "dark": "#ef5350"},
@@ -110,6 +114,10 @@ class ThemePalette:
     focus_border: str
     control_border: str
     icon_btn_hover: str
+    checkbox_bg: str
+    checkbox_bg_hover: str
+    checkbox_checked: str
+    checkbox_checked_border: str
     scrollbar_handle: str
     scrollbar_handle_hover: str
     error: str
@@ -802,11 +810,22 @@ def _build_stylesheet(p: ThemePalette, fs: int) -> str:
         color: {p.text};
     }}
     QListWidget::item:hover {{
-        background: transparent;
+        background-color: {p.hover_bg};
     }}
     QListWidget::item:selected {{
         background-color: {p.selection_bg};
         color: {p.selection_text};
+    }}
+    QListWidget::indicator {{
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        border: 1px solid {p.button_border};
+        background-color: {p.checkbox_bg};
+    }}
+    QListWidget::indicator:checked {{
+        background-color: {p.checkbox_checked};
+        border-color: {p.checkbox_checked_border};
     }}
     QCheckBox {{
         spacing: 6px;
@@ -821,11 +840,11 @@ def _build_stylesheet(p: ThemePalette, fs: int) -> str:
         height: 16px;
         border-radius: 3px;
         border: 1px solid {p.button_border};
-        background-color: {p.input};
+        background-color: {p.checkbox_bg};
     }}
     QCheckBox::indicator:checked {{
-        background-color: {p.accent_green};
-        border-color: {p.accent_green_border};
+        background-color: {p.checkbox_checked};
+        border-color: {p.checkbox_checked_border};
     }}
     QScrollArea {{
         border: none;

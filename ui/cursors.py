@@ -24,16 +24,16 @@ def _set_arrow_cursor(widget: QWidget) -> None:
 def _apply_widget_cursor(widget: QWidget) -> None:
     """Задаёт курсор одному виджету по его типу."""
     if isinstance(widget, QCheckBox):
-        if widget.text().strip():
-            _set_arrow_cursor(widget)
-        else:
-            _set_hand_cursor(widget)
+        _set_hand_cursor(widget)
         return
     if isinstance(widget, QAbstractButton):
         _set_hand_cursor(widget)
         return
-    if isinstance(widget, (QComboBox, QListWidget)):
+    if isinstance(widget, QComboBox):
         _set_hand_cursor(widget)
+        return
+    if isinstance(widget, QListWidget):
+        _set_arrow_cursor(widget)
 
 
 def apply_interactive_cursors(root: QWidget) -> None:

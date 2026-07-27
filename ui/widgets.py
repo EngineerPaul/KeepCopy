@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QColor, QPainter
-from PySide6.QtWidgets import QComboBox, QLabel, QSpinBox, QWidget
+from PySide6.QtWidgets import QCheckBox, QComboBox, QLabel, QSpinBox, QWidget
 
 
 class NoWheelComboBox(QComboBox):
@@ -14,6 +14,13 @@ class NoWheelComboBox(QComboBox):
 
     def wheelEvent(self, event) -> None:
         event.ignore()
+
+
+class FullRowCheckBox(QCheckBox):
+    """Чекбокс, у которого кликабельна вся площадь виджета."""
+
+    def hitButton(self, pos: QPoint) -> bool:
+        return self.rect().contains(pos)
 
 
 class NoSelectStepSpinBox(QSpinBox):
