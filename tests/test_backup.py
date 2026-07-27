@@ -87,6 +87,38 @@ class TestKeepChanges:
         assert result.files_copied == 0
         assert not (dest / "src_auto" / "a.txt").exists()
 
+    def test_automatic_second_run_skips_file_with_old_mtime(
+        self, test_root: Path, backup_engine
+    ) -> None:
+        """
+        После первого автокопирования файл с mtime раньше last_run
+        не попадает в архив при втором автозапуске.
+        """
+        src = test_root / "src_old_mtime"
+        dest = test_root / "dest_old_mtime"
+        dest.mkdir()
+        write_file(src / "seed.txt", "seed")
+
+        task = make_task([str(src)], str(dest))
+        first = backup_engine.run(task, automatic=True)
+        assert first.files_copied == 1
+        assert (dest / "src_old_mtime" / "seed.txt").exists()
+
+        # Как после BackupWorker: фиксируем last_run / last_auto_run.
+        run_moment = datetime.now()
+        task.last_run = run_moment
+        task.last_auto_run = run_moment
+
+        old_path = src / "old.txt"
+        write_file(old_path, "should-not-copy")
+        old_mtime = (run_moment - timedelta(hours=2)).timestamp()
+        os.utime(old_path, (old_mtime, old_mtime))
+        assert old_path.stat().st_mtime < task.last_run.timestamp()
+
+        second = backup_engine.run(task, automatic=True)
+        assert second.files_copied == 0
+        assert not (dest / "src_old_mtime" / "old.txt").exists()
+
 
 class TestFilters:
     """Тесты фильтров исключений."""
