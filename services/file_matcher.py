@@ -79,8 +79,8 @@ class FileMatcher:
             return True
         return mtime > last_run.timestamp()
 
-    def _is_missing_in_archive(self, entry: FileEntry, dest_base: str) -> bool:
-        """Проверяет отсутствие файла в архиве (по относительному пути)."""
+    def _is_missing_in_destination(self, entry: FileEntry, dest_base: str) -> bool:
+        """Проверяет отсутствие файла в назначении (по относительному пути)."""
         if entry.is_dir:
             return False
         rel = entry.relative_path.replace("\\", "/")
@@ -100,10 +100,10 @@ class FileMatcher:
         dest_base: str,
     ) -> list[FileEntry]:
         """
-        Ручной запуск: по дате или если файла нет в архиве.
+        Ручной запуск: по дате или если файла нет в назначении.
 
         Файл копируется, если дата изменения новее last_run
-        либо одноимённый файл отсутствует в архиве.
+        либо одноимённый файл отсутствует в назначении.
         """
         entries: list[FileEntry] = []
         for entry in self.iter_entries(source, for_copy=False):
@@ -111,7 +111,7 @@ class FileMatcher:
                 continue
             if self._should_copy_by_date(entry.mtime, last_run):
                 entries.append(entry)
-            elif self._is_missing_in_archive(entry, dest_base):
+            elif self._is_missing_in_destination(entry, dest_base):
                 entries.append(entry)
         return entries
 
@@ -269,7 +269,7 @@ class FileMatcher:
 
         Args:
             last_run: Время последнего запуска.
-            manual: Ручной запуск (доп. проверка отсутствия в архиве).
+            manual: Ручной запуск (доп. проверка отсутствия в назначении).
             dest_bases: Пути назначения по источникам для ручного режима.
         """
         result: dict[str, list[FileEntry]] = {}

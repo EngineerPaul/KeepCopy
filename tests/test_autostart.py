@@ -26,12 +26,25 @@ def test_startup_folder_under_appdata() -> None:
 def test_shortcut_path() -> None:
     with patch.dict("os.environ", {"APPDATA": r"C:\Users\Test\AppData\Roaming"}):
         path = autostart.shortcut_path()
-    assert path.name == "Archiver.lnk"
+    assert path.name == "KeepCopy.lnk"
     assert path.parent.name == "Startup"
 
 
+def test_is_autostart_enabled_legacy_shortcut() -> None:
+    current = MagicMock()
+    current.is_file.return_value = False
+    legacy = MagicMock()
+    legacy.is_file.return_value = True
+    with (
+        patch.object(autostart, "is_windows", return_value=True),
+        patch.object(autostart, "shortcut_path", return_value=current),
+        patch.object(autostart, "_legacy_shortcut_path", return_value=legacy),
+    ):
+        assert autostart.is_autostart_enabled() is True
+
+
 def test_get_launch_spec_frozen() -> None:
-    exe = Path(r"C:\Apps\Archiver\Archiver.exe")
+    exe = Path(r"C:\Apps\KeepCopy\KeepCopy.exe")
     with (
         patch.object(sys, "frozen", True, create=True),
         patch.object(sys, "executable", str(exe)),
@@ -47,10 +60,10 @@ def test_get_launch_spec_frozen() -> None:
 
 
 def test_get_launch_spec_nuitka_exe_argv() -> None:
-    exe = Path(r"C:\Apps\Archiver\Archiver.exe")
+    exe = Path(r"C:\Apps\KeepCopy\KeepCopy.exe")
     with (
         patch.object(sys, "frozen", False, create=True),
-        patch.object(sys, "executable", r"C:\Apps\Archiver\python.exe"),
+        patch.object(sys, "executable", r"C:\Apps\KeepCopy\python.exe"),
         patch.object(sys, "argv", [str(exe)]),
         patch("services.autostart.get_app_dir", return_value=exe.parent),
         patch("services.autostart.is_compiled_app", return_value=True),

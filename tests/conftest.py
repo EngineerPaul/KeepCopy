@@ -1,4 +1,4 @@
-"""Фикстуры pytest для тестов Архиватора."""
+"""Фикстуры pytest для тестов KeepCopy."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from services.logger import BackupLogger
 @pytest.fixture
 def test_root(tmp_path: Path) -> Path:
     """Корневая директория для тестовых файлов."""
-    root = tmp_path / "archiver_tests"
+    root = tmp_path / "keepcopy_tests"
     root.mkdir(exist_ok=True)
     yield root
     if root.exists():

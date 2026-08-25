@@ -1,4 +1,4 @@
-"""Генерация archiver_icon.ico из assets/archiver_icon.svg для сборки Nuitka."""
+"""Генерация keepcopy_icon.ico из assets/keepcopy_icon.svg для сборки Nuitka."""
 
 from __future__ import annotations
 
@@ -12,8 +12,13 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication
 
 ROOT = Path(__file__).resolve().parent.parent
-SVG_PATH = ROOT / "assets" / "archiver_icon.svg"
-ICO_PATH = ROOT / "assets" / "archiver_icon.ico"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from models.app_info import ICON_ICO, ICON_SVG
+
+SVG_PATH = ROOT / "assets" / ICON_SVG
+ICO_PATH = ROOT / "assets" / ICON_ICO
 ICO_SIZES = (16, 32, 48, 64, 128, 256)
 
 
@@ -67,7 +72,7 @@ def _write_ico(png_images: list[tuple[int, bytes]], output: Path) -> None:
 
 
 def main() -> int:
-    """Создаёт assets/archiver_icon.ico из SVG."""
+    """Создаёт assets/keepcopy_icon.ico из SVG."""
     if not SVG_PATH.is_file():
         print(f"Файл не найден: {SVG_PATH}", file=sys.stderr)
         return 1

@@ -1,4 +1,4 @@
-"""Точка входа приложения Архиватор."""
+"""Точка входа приложения KeepCopy."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import sys
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
+from models.app_info import APP_NAME
 from services.autostart import BACKGROUND_ARG, reconcile_autostart
 from services.storage import StorageService
 from ui.app_icon import app_icon
@@ -40,7 +41,7 @@ def main() -> int:
     background = _background_mode(sys.argv)
 
     app = QApplication(sys.argv)
-    app.setApplicationName("Архиватор")
+    app.setApplicationName(APP_NAME)
     setup_application_style(app)
     icon = app_icon()
     if not icon.isNull():

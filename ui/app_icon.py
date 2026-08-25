@@ -8,9 +8,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
+from models.app_info import ICON_SVG
 from services.path_utils import get_app_dir
 
-APP_ICON_SVG = "archiver_icon.svg"
+APP_ICON_SVG = ICON_SVG
 APP_ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
 
 

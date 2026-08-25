@@ -245,7 +245,7 @@ class BackupEngine:
         entries: list[FileEntry],
         on_bytes: Optional[Callable[[int], None]] = None,
     ) -> list[tuple[str, str]]:
-        """Добавляет файлы в zip-архив."""
+        """Добавляет файлы в ZIP."""
         skipped: list[tuple[str, str]] = []
         mode = "a" if os.path.exists(to_long_path(zip_path)) else "w"
         try:
@@ -284,7 +284,7 @@ class BackupEngine:
         entries: list[FileEntry],
         on_bytes: Optional[Callable[[int], None]] = None,
     ) -> list[tuple[str, str]]:
-        """Создаёт новый zip-архив."""
+        """Создаёт новый ZIP-файл."""
         skipped: list[tuple[str, str]] = []
         try:
             with zipfile.ZipFile(

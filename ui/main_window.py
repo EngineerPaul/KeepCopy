@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from models.app_info import APP_NAME
 from models.app_settings import (
     COLUMN_KEYS,
     COLUMN_LABELS,
@@ -65,15 +66,15 @@ from workers.task_queue import TaskQueueManager
 
 
 def _format_task_tooltip(task: Task, theme: str) -> str:
-    """Формирует подсказку задачи: название, архив (выделен), источники."""
-    archive_color = get_palette(theme).tooltip_archive
+    """Формирует подсказку задачи: название, назначение (выделено), источники."""
+    dest_color = get_palette(theme).tooltip_destination
     parts = [f"<b>{html.escape(task.name)}</b>"]
     if task.destination:
         dest = html.escape(task.destination)
         parts.append(
             "<br><br>"
-            f"<span style='color:{archive_color};'><b>Архив</b></span><br>"
-            f"<span style='color:{archive_color};'>{dest}</span>"
+            f"<span style='color:{dest_color};'><b>Назначение</b></span><br>"
+            f"<span style='color:{dest_color};'>{dest}</span>"
         )
     if task.sources:
         src_lines = "<br>".join(html.escape(src) for src in task.sources)
@@ -98,7 +99,7 @@ class MainWindow(QMainWindow):
         self._selected_ids: list[str] = []
         self._detail_rows: dict[str, list[int]] = {}
 
-        self.setWindowTitle("Архиватор")
+        self.setWindowTitle(APP_NAME)
         self._load_data()
         self._setup_geometry()
         self._build_ui()
@@ -502,7 +503,7 @@ class MainWindow(QMainWindow):
             self._expand_task(task_id)
 
     def _paths_at_cell(self, row: int, col: int) -> list[str]:
-        """Возвращает пути для ячейки «Источники» или «Архив»."""
+        """Возвращает пути для ячейки «Источники» или «Назначение»."""
         if col < 0 or col >= len(self._col_map):
             return []
         col_key = self._col_map[col]

@@ -54,7 +54,7 @@ COLORS: dict[str, dict[str, str]] = {
     "detail": {"light": "#5a7a84", "dark": "#9ec4cc"},
     "accent_green": {"light": "#43a86f", "dark": "#43a86f"},
     "accent_green_border": {"light": "#2d8a5a", "dark": "#2d8a5a"},
-    "tooltip_archive": {"light": "#14566a", "dark": "#9ec4cc"},
+    "tooltip_destination": {"light": "#14566a", "dark": "#9ec4cc"},
     "nested_source": {"light": "#c62828", "dark": "#ef5350"},
     "delete_hover": {"light": "#c62828", "dark": "#c62828"},
     "delete_pressed": {"light": "#b71c1c", "dark": "#b71c1c"},
@@ -118,7 +118,7 @@ class ThemePalette:
     detail: str
     accent_green: str
     accent_green_border: str
-    tooltip_archive: str
+    tooltip_destination: str
     nested_source: str
     delete_hover: str
     delete_pressed: str

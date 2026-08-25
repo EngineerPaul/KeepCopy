@@ -27,7 +27,7 @@ COLUMN_LABELS = {
     "name": "Название",
     "description": "Описание",
     "sources": "Источники",
-    "destination": "Архив",
+    "destination": "Назначение",
     "schedule_time": "Время",
     "period_days": "Период.",
     "exclusions": "Исключения",

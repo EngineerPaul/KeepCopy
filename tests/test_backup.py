@@ -41,10 +41,10 @@ class TestKeepChanges:
         # старые файлы на месте
         assert (dest / "src1" / "a.txt").read_text() == "aaa"
 
-    def test_empty_archive_manual_copies_missing(
+    def test_empty_destination_manual_copies_missing(
         self, test_root: Path, backup_engine
     ) -> None:
-        """Ручной запуск: отсутствующие в архиве файлы копируются даже со старой датой."""
+        """Ручной запуск: отсутствующие в назначении файлы копируются даже со старой датой."""
         src = test_root / "src_empty"
         dest = test_root / "dest_empty"
         dest.mkdir()

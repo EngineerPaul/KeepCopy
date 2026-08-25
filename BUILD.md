@@ -27,31 +27,31 @@ $env:NUITKA_CACHE_DIR = "C:\NuitkaCache"
 python scripts/build_exe.py
 ```
 
-Скрипт при необходимости создаёт `assets/archiver_icon.ico` и запускает Nuitka.
+Скрипт при необходимости создаёт `assets/keepcopy_icon.ico` и запускает Nuitka.
 
 ### Результат
 
 | Путь | Описание |
 |------|----------|
-| `compiler/Archiver.dist/` | Папка для распространения (все DLL и ресурсы) |
-| `compiler/Archiver.dist/Archiver.exe` | Исполняемый файл |
-| `compiler/Archiver.dist/assets/` | Иконки и прочие ресурсы |
+| `compiler/KeepCopy.dist/` | Папка для распространения (все DLL и ресурсы) |
+| `compiler/KeepCopy.dist/KeepCopy.exe` | Исполняемый файл |
+| `compiler/KeepCopy.dist/assets/` | Иконки и прочие ресурсы |
 
-Скопируйте **всю** папку `Archiver.dist` в постоянное место (например, `C:\Program Files\Archiver\`).  
-Рядом с `Archiver.exe` создаются `settings.json`, `backup.log`, папка `errors/`.
+Скопируйте **всю** папку `KeepCopy.dist` в постоянное место (например, `C:\Program Files\KeepCopy\`).  
+Рядом с `KeepCopy.exe` создаются `settings.json`, `backup.log`, папка `errors/`.
 
 Папку `compiler/` можно удалить и пересобрать в любой момент.
 
 ### Антивирус и Windows Defender
 
-Скомпилированный `Archiver.exe` (Nuitka, standalone) **может ложно определяться** антивирусом или Windows Defender как угроза — например, `Trojan:Win32/Bearfoos.A!ml`. Суффикс `!ml` означает эвристику (машинное обучение), а не подтверждённый вирус. Так бывает у неподписанных exe, собранных из Python/Qt, особенно с автозапуском и фоновым режимом.
+Скомпилированный `KeepCopy.exe` (Nuitka, standalone) **может ложно определяться** антивирусом или Windows Defender как угроза — например, `Trojan:Win32/Bearfoos.A!ml`. Суффикс `!ml` означает эвристику (машинное обучение), а не подтверждённый вирус. Так бывает у неподписанных exe, собранных из Python/Qt, особенно с автозапуском и фоновым режимом.
 
 **Что сделать:**
 
 1. Если файл попал в карантин — **восстановите** его в «Безопасность Windows» → «Журнал защиты».
-2. Добавьте в **исключения** папку, где лежит приложение (всю `Archiver.dist`, а не только exe):
+2. Добавьте в **исключения** папку, где лежит приложение (всю `KeepCopy.dist`, а не только exe):
    - **Параметры** → **Конфиденциальность и защита** → **Безопасность Windows** → **Защита от вирусов и угроз** → **Управление настройками** → **Исключения** → **Добавить исключение** → **Папка**.
-   - Укажите каталог с `Archiver.exe`, например `compiler\Archiver.dist` или постоянное место установки (`C:\Program Files\Archiver\`).
+   - Укажите каталог с `KeepCopy.exe`, например `compiler\KeepCopy.dist` или постоянное место установки (`C:\Program Files\KeepCopy\`).
 3. После переноса или пересборки обновите исключение на новый путь.
 
 Для распространения другим пользователям желательна **цифровая подпись** exe; при ложном срабатывании можно отправить файл как ложноположительный: https://www.microsoft.com/wdsi/filesubmission
@@ -68,11 +68,11 @@ python -m nuitka ^
   --include-package=pathspec ^
   --include-data-dir=assets=assets ^
   --output-dir=compiler ^
-  --output-filename=Archiver.exe ^
-  --company-name=Archiver ^
-  --product-name=Архиватор ^
+  --output-filename=KeepCopy.exe ^
+  --company-name=KeepCopy ^
+  --product-name=KeepCopy ^
   --file-version=1.0.0 ^
-  --windows-icon-from-ico=assets/archiver_icon.ico ^
+  --windows-icon-from-ico=assets/keepcopy_icon.ico ^
   main.py
 ```
 
@@ -96,29 +96,31 @@ python -m nuitka ^
 
 | Параметр | Значение |
 |----------|----------|
-| Имя файла | `Archiver.lnk` |
-| Цель (exe) | `Archiver.exe` из папки сборки |
+| Имя файла | `KeepCopy.lnk` |
+| Цель (exe) | `KeepCopy.exe` из папки сборки |
 | Аргументы | `--background` |
 | Режим окна ярлыка | Свернуто (WindowStyle = 7) |
 
 В режиме разработки (без exe) ярлык указывает на `pythonw.exe` и `main.py --background`.
+
+Старый ярлык `Archiver.lnk` при включённом автозапуске заменяется на `KeepCopy.lnk`.
 
 ### Фоновый запуск (`--background`)
 
 При автозапуске программа **не открывает окно** и **не появляется на основной панели задач**:
 
 - окно создаётся, но остаётся скрытым;
-- в трее (область уведомлений, «стрелочка» справа внизу) появляется иконка **Архиватор**;
+- в трее (область уведомлений, «стрелочка» справа внизу) появляется иконка **KeepCopy**;
 - двойной щелчок по иконке или пункт меню **«Открыть»** — показать окно;
 - **«Выход»** — завершить программу;
 - кнопка закрытия окна (×) в фоновом режиме **сворачивает в трей**, а не завершает приложение.
 
-Обычный запуск (двойной щелчок по exe **без** `--background`) — окно открывается сразу, иконка на панели задач. Это нормальное поведение: фоновый режим только при автозапуске или явном `Archiver.exe --background`.
+Обычный запуск (двойной щелчок по exe **без** `--background`) — окно открывается сразу, иконка на панели задач. Это нормальное поведение: фоновый режим только при автозапуске или явном `KeepCopy.exe --background`.
 
 ### Включение и выключение
 
 1. **Через настройки** — чекбокс «Автозапуск при старте системы» → **Применить**.
-2. **Вручную** — создать или удалить ярлык `Archiver.lnk` в `shell:startup` с аргументом `--background`.
+2. **Вручную** — создать или удалить ярлык `KeepCopy.lnk` в `shell:startup` с аргументом `--background`.
 
 При старте приложение сверяет галочку в `settings.json` с наличием ярлыка и при расхождении восстанавливает ярлык.
 
@@ -130,10 +132,10 @@ python -m nuitka ^
 
 ## Иконка
 
-- Исходник: `assets/archiver_icon.svg`
-- Для exe: `python scripts/build_icon.py` → `assets/archiver_icon.ico`
+- Исходник: `assets/keepcopy_icon.svg`
+- Для exe: `python scripts/build_icon.py` → `assets/keepcopy_icon.ico`
 - В окне и в трее: загрузка из SVG (`ui/app_icon.py`)
 
 ## Проверка сборки
 
-Тестируйте `Archiver.exe` на машине **без** установленного Python.
+Тестируйте `KeepCopy.exe` на машине **без** установленного Python.

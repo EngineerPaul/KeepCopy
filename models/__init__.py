@@ -1,4 +1,4 @@
-"""Модели данных приложения Архиватор."""
+"""Модели данных приложения KeepCopy."""
 
 from models.task import CopyMode, Task
 from models.app_settings import AppSettings

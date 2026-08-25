@@ -499,7 +499,7 @@ class MainTableWidget(QTableWidget):
         return bool(item.data(SOURCES_FIRST_ROLE))
 
     def _update_path_cursor_at_global(self, global_pos) -> None:
-        """Меняет курсор над кликабельными путями «Источник» и «Архив»."""
+        """Меняет курсор над кликабельными путями «Источник» и «Назначение»."""
         local = self.viewport().mapFromGlobal(global_pos)
         if not self.viewport().rect().contains(local):
             self.viewport().unsetCursor()

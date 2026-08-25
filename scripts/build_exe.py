@@ -1,4 +1,4 @@
-"""Сборка Archiver.exe через Nuitka в папку compiler/."""
+"""Сборка KeepCopy.exe через Nuitka в папку compiler/."""
 
 from __future__ import annotations
 
@@ -9,8 +9,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from models.app_info import APP_NAME, DIST_DIR, EXE_NAME, ICON_ICO
+
 COMPILER_DIR = ROOT / "compiler"
-ICON = ROOT / "assets" / "archiver_icon.ico"
+ICON = ROOT / "assets" / ICON_ICO
 
 
 def main() -> int:
@@ -38,9 +43,9 @@ def main() -> int:
         "--include-package=pathspec",
         f"--include-data-dir={ROOT / 'assets'}=assets",
         f"--output-dir={COMPILER_DIR}",
-        "--output-filename=Archiver.exe",
-        "--company-name=Archiver",
-        "--product-name=Архиватор",
+        f"--output-filename={EXE_NAME}",
+        f"--company-name={APP_NAME}",
+        f"--product-name={APP_NAME}",
         "--file-version=1.0.0",
         f"--windows-icon-from-ico={ICON}",
         str(ROOT / "main.py"),
@@ -51,7 +56,7 @@ def main() -> int:
         return rc
 
     built_dist = COMPILER_DIR / "main.dist"
-    dist_dir = COMPILER_DIR / "Archiver.dist"
+    dist_dir = COMPILER_DIR / DIST_DIR
     if built_dist.is_dir():
         # Сохраняем settings.json из предыдущей сборки, чтобы не сбрасывать задачи/настройки.
         preserved_settings: bytes | None = None
@@ -67,7 +72,7 @@ def main() -> int:
             (dist_dir / "settings.json").write_bytes(preserved_settings)
             print(f"Восстановлен: {dist_dir / 'settings.json'}")
 
-        print(f"Готово: {dist_dir / 'Archiver.exe'}")
+        print(f"Готово: {dist_dir / EXE_NAME}")
     print("Формирование запускаемого .exe файла выполнено!")
     return 0
 

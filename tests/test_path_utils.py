@@ -30,7 +30,7 @@ def test_is_compiled_app_nuitka_argv() -> None:
     import sys
     from unittest.mock import patch
 
-    exe = r"C:\Apps\Archiver\Archiver.exe"
+    exe = r"C:\Apps\KeepCopy\KeepCopy.exe"
     with (
         patch.object(sys, "frozen", False, create=True),
         patch.object(sys, "argv", [exe]),
@@ -64,11 +64,11 @@ def test_get_app_executable_prefers_argv_exe() -> None:
     import sys
     from unittest.mock import patch
 
-    exe = r"C:\Apps\Archiver\Archiver.exe"
+    exe = r"C:\Apps\KeepCopy\KeepCopy.exe"
     with (
         patch.object(sys, "frozen", False, create=True),
         patch.object(sys, "argv", [exe]),
-        patch.object(sys, "executable", r"C:\Apps\Archiver\python.exe"),
+        patch.object(sys, "executable", r"C:\Apps\KeepCopy\python.exe"),
     ):
         assert get_app_executable() == Path(exe).resolve()
 

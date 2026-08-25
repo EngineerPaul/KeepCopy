@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
+from models.app_info import APP_NAME
 from ui.app_icon import app_icon
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ class AppTray:
         self._window = window
         self._app = app
         self._tray = QSystemTrayIcon(app_icon(), window)
-        self._tray.setToolTip("Архиватор")
+        self._tray.setToolTip(APP_NAME)
 
         menu = QMenu()
         open_action = QAction("Открыть", menu)

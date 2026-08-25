@@ -7,9 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from models.app_info import APP_NAME, LEGACY_SHORTCUT_NAME, SHORTCUT_NAME
 from services.path_utils import get_app_dir, get_app_executable, is_compiled_app
 
-SHORTCUT_NAME = "Archiver.lnk"
 BACKGROUND_ARG = "--background"
 _STARTUP_REL = Path("Microsoft") / "Windows" / "Start Menu" / "Programs" / "Startup"
 
@@ -36,18 +36,29 @@ def shortcut_path() -> Path:
     return get_startup_folder() / SHORTCUT_NAME
 
 
+def _legacy_shortcut_path() -> Path:
+    """Ярлык со старым именем приложения."""
+    return get_startup_folder() / LEGACY_SHORTCUT_NAME
+
+
+def _remove_legacy_shortcut() -> None:
+    path = _legacy_shortcut_path()
+    if path.is_file():
+        path.unlink()
+
+
 def is_autostart_enabled() -> bool:
     """Есть ли ярлык автозапуска в папке Startup."""
     if not is_windows():
         return False
-    return shortcut_path().is_file()
+    return shortcut_path().is_file() or _legacy_shortcut_path().is_file()
 
 
 def get_launch_spec() -> tuple[Path, str, Path]:
     """
     Цель ярлыка: исполняемый файл, аргументы, рабочая папка.
 
-    Скомпилированный exe: Archiver.exe --background
+    Скомпилированный exe: KeepCopy.exe --background
     Разработка: pythonw.exe "main.py" --background
     """
     work_dir = get_app_dir()
@@ -75,7 +86,7 @@ $s.TargetPath = '{_ps_escape(str(target))}'
 $s.Arguments = '{_ps_escape(arguments)}'
 $s.WorkingDirectory = '{_ps_escape(str(work_dir))}'
 $s.WindowStyle = 7
-$s.Description = 'Архиватор'
+$s.Description = '{_ps_escape(APP_NAME)}'
 $s.Save()
 """
     subprocess.run(
@@ -91,6 +102,7 @@ def enable_autostart() -> None:
         return
     target, arguments, work_dir = get_launch_spec()
     _create_shortcut(shortcut_path(), target, arguments, work_dir)
+    _remove_legacy_shortcut()
 
 
 def disable_autostart() -> None:
@@ -100,6 +112,7 @@ def disable_autostart() -> None:
     path = shortcut_path()
     if path.is_file():
         path.unlink()
+    _remove_legacy_shortcut()
 
 
 def apply_autostart(enabled: bool) -> None:

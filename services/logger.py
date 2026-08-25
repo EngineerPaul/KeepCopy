@@ -93,7 +93,7 @@ class BackupLogger:
             f.write(f"ID: {task.id}\n")
             f.write(f"Описание: {task.description}\n")
             f.write(f"Источники: {', '.join(task.sources)}\n")
-            f.write(f"Архив: {task.destination}\n")
+            f.write(f"Назначение: {task.destination}\n")
             f.write(f"Режим: {task.copy_mode_label()}\n")
             f.write(f"Сжатие: {'да' if task.compress else 'нет'}\n")
             f.write("---\n")

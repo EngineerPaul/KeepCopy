@@ -15,7 +15,7 @@
     </linearGradient>
   </defs>
 
-  <!-- archive box -->
+  <!-- storage box -->
   <rect x="24" y="42" width="80" height="62" rx="10" fill="url(#boxGrad)"/>
   <path d="M24 50c0-4.4 3.6-8 8-8h64c4.4 0 8 3.6 8 8v8H24V50z" fill="url(#lipGrad)"/>
   <path d="M56 42h16v8c0 2.2-1.8 4-4 4H60c-2.2 0-4-1.8-4-4v-8z" fill="#0f4554"/>

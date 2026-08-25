@@ -528,7 +528,7 @@ class TaskDialog(QDialog):
         desc_layout.addWidget(QLabel("Описание:"))
         desc_layout.addWidget(self._description)
 
-        desc_layout.addWidget(QLabel("Путь копирования:"))
+        desc_layout.addWidget(QLabel("Источник:"))
         src_row = QHBoxLayout()
         self._source_input = QLineEdit()
         src_row.addWidget(self._source_input)
@@ -557,7 +557,7 @@ class TaskDialog(QDialog):
         self._configure_list_table(self._sources_table, visible_rows=5)
         desc_layout.addWidget(self._sources_table)
 
-        desc_layout.addWidget(QLabel("Путь вставки:"))
+        desc_layout.addWidget(QLabel("Назначение:"))
         dest_row = QHBoxLayout()
         self._destination = QLineEdit()
         dest_row.addWidget(self._destination)
@@ -634,7 +634,7 @@ class TaskDialog(QDialog):
         extra_layout.addRow("Макс. размер (МБ):", self._max_size)
 
         self._compress = QCheckBox()
-        extra_layout.addRow("Архивирование:", self._compress)
+        extra_layout.addRow("Сжатие:", self._compress)
 
         self._copy_mode = NoWheelComboBox()
         for mode in CopyMode:
@@ -839,8 +839,8 @@ class TaskDialog(QDialog):
             self._source_input.setText(path)
 
     def _browse_dest(self) -> None:
-        """Диалог выбора папки архива."""
-        folder = QFileDialog.getExistingDirectory(self, "Выберите папку архива")
+        """Диалог выбора папки назначения."""
+        folder = QFileDialog.getExistingDirectory(self, "Выберите папку назначения")
         if folder:
             self._destination.setText(folder)
 
