@@ -27,7 +27,13 @@ $env:NUITKA_CACHE_DIR = "C:\NuitkaCache"
 python scripts/build_exe.py
 ```
 
-Скрипт при необходимости создаёт `assets/keepcopy_icon.ico` и запускает Nuitka.
+Скрипт при необходимости создаёт `assets/keepcopy_icon.ico` и запускает Nuitka. Или...
+
+```bash
+python scripts/pack_dist.py
+```
+
+`pack_dist.py` собирает `compiler/KeepCopy.zip` без `settings.json`, `backup.log` и `errors/`.
 
 ### Результат
 
@@ -36,6 +42,7 @@ python scripts/build_exe.py
 | `compiler/KeepCopy.dist/` | Папка для распространения (все DLL и ресурсы) |
 | `compiler/KeepCopy.dist/KeepCopy.exe` | Исполняемый файл |
 | `compiler/KeepCopy.dist/assets/` | Иконки и прочие ресурсы |
+| `compiler/KeepCopy.zip` | Архив папки `KeepCopy.dist` без `settings.json` |
 
 Скопируйте **всю** папку `KeepCopy.dist` в постоянное место (например, `C:\Program Files\KeepCopy\`).  
 Рядом с `KeepCopy.exe` создаются `settings.json`, `backup.log`, папка `errors/`.

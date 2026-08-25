@@ -8,11 +8,11 @@ fi
 
 cd "$DEPLOY_PATH"
 
-if [[ ! -f keepcopy-ci-test.txt ]]; then
-  echo "keepcopy-ci-test.txt not found in $DEPLOY_PATH"
+if [[ ! -f KeepCopy.zip ]]; then
+  echo "KeepCopy.zip not found in $DEPLOY_PATH"
   ls -la
   exit 1
 fi
 
 echo "Deploy OK: $DEPLOY_PATH"
-ls -la
+ls -lh KeepCopy.zip
