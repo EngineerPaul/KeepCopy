@@ -53,3 +53,7 @@ ehthumbs.db
 
 # macOS
 .DS_Store
+
+github_actions_ed25519
+github_actions_ed25519.pub
+CI.md
