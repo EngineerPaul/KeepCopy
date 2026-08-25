@@ -6,6 +6,7 @@ from copy import deepcopy
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -13,13 +14,14 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QListWidget,
     QListWidgetItem,
+    QSizePolicy,
     QVBoxLayout,
 )
 
 from models.app_settings import COLUMN_KEYS, COLUMN_LABELS, AppSettings
 from ui.cursors import apply_interactive_cursors
 from ui.themes import apply_window_theme
-from ui.widgets import NoSelectStepSpinBox, static_label
+from ui.widgets import FullRowCheckBox, NoSelectStepSpinBox, static_label
 from ui.window_chrome import schedule_window_chrome
 
 
@@ -53,15 +55,22 @@ class SettingsDialog(QDialog):
         layout.addWidget(static_label("Поля панели задач:"))
         self._columns = QListWidget()
         self._columns.setMaximumHeight(140)
+        self._columns.setSelectionMode(QAbstractItemView.NoSelection)
+        self._columns.setFocusPolicy(Qt.NoFocus)
+        self._columns.setAutoScroll(False)
+        self._columns.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         for key in COLUMN_KEYS:
             if key == "actions":
                 continue
-            item = QListWidgetItem(COLUMN_LABELS[key])
+            item = QListWidgetItem()
             item.setData(Qt.UserRole, key)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            checked = self._result.visible_columns.get(key, True)
-            item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+            item.setFlags(Qt.ItemIsEnabled)
             self._columns.addItem(item)
+            checkbox = FullRowCheckBox(COLUMN_LABELS[key])
+            checkbox.setChecked(self._result.visible_columns.get(key, True))
+            checkbox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            checkbox.setMinimumWidth(1)
+            self._columns.setItemWidget(item, checkbox)
         layout.addWidget(self._columns)
 
         font_row = QHBoxLayout()
@@ -113,7 +122,9 @@ class SettingsDialog(QDialog):
         for i in range(self._columns.count()):
             item = self._columns.item(i)
             key = item.data(Qt.UserRole)
-            self._result.visible_columns[key] = item.checkState() == Qt.Checked
+            checkbox = self._columns.itemWidget(item)
+            checked = isinstance(checkbox, QCheckBox) and checkbox.isChecked()
+            self._result.visible_columns[key] = checked
         self._result.visible_columns["actions"] = True
         self._original = deepcopy(self._result)
         self.accept()

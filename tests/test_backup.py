@@ -56,10 +56,10 @@ class TestKeepChanges:
         assert result.files_copied == 1
         assert (dest / "src_empty" / "a.txt").exists()
 
-    def test_first_automatic_run_copies_all(
+    def test_copies_missing_even_when_last_run_in_future(
         self, test_root: Path, backup_engine
     ) -> None:
-        """Первый автозапуск копирует все файлы, даже если last_run уже задан."""
+        """Нет особого «первого авто»: файл без копии в назначении копируется, даже если last_run в будущем."""
         src = test_root / "src_first_auto"
         dest = test_root / "dest_first_auto"
         dest.mkdir()
@@ -67,26 +67,73 @@ class TestKeepChanges:
 
         task = make_task([str(src)], str(dest))
         task.last_run = datetime.now() + timedelta(hours=1)
+        task.last_auto_run = datetime.now()
         result = backup_engine.run(task, automatic=True)
         assert result.files_copied == 1
         assert (dest / "src_first_auto" / "a.txt").exists()
 
-    def test_automatic_run_skips_old_files_after_first(
+    def test_automatic_run_skips_old_files_already_in_archive(
         self, test_root: Path, backup_engine
     ) -> None:
-        """Повторный автозапуск: файлы старше last_run не копируются."""
+        """Повторный автозапуск: старый по mtime файл, уже в назначении, не копируется снова."""
         src = test_root / "src_auto"
         dest = test_root / "dest_auto"
         dest.mkdir()
         write_file(src / "a.txt", "aaa")
 
         task = make_task([str(src)], str(dest))
-        task.last_run = datetime.now() + timedelta(hours=1)
-        task.last_auto_run = datetime.now()
+        first = backup_engine.run(task, automatic=True)
+        assert first.files_copied == 1
+        assert (dest / "src_auto" / "a.txt").exists()
+
+        run_moment = datetime.now()
+        task.last_run = run_moment
+        task.last_auto_run = run_moment
+        # mtime источника делаем «старым» относительно last_run
+        os.utime(
+            src / "a.txt",
+            (
+                (run_moment - timedelta(hours=2)).timestamp(),
+                (run_moment - timedelta(hours=2)).timestamp(),
+            ),
+        )
+
         result = backup_engine.run(task, automatic=True)
         assert result.files_copied == 0
-        assert not (dest / "src_auto" / "a.txt").exists()
 
+    def test_automatic_copies_missing_file_with_old_mtime(
+        self, test_root: Path, backup_engine
+    ) -> None:
+        """
+        После первого автокопирования новый файл с mtime раньше last_run
+        всё равно попадает в назначение (его там ещё нет).
+        """
+        src = test_root / "src_old_mtime"
+        dest = test_root / "dest_old_mtime"
+        dest.mkdir()
+        write_file(src / "seed.txt", "seed")
+
+        task = make_task([str(src)], str(dest))
+        first = backup_engine.run(task, automatic=True)
+        assert first.files_copied == 1
+        assert (dest / "src_old_mtime" / "seed.txt").exists()
+
+        run_moment = datetime.now()
+        task.last_run = run_moment
+        task.last_auto_run = run_moment
+
+        old_path = src / "old.txt"
+        write_file(old_path, "should-copy-missing")
+        old_mtime = (run_moment - timedelta(hours=2)).timestamp()
+        os.utime(old_path, (old_mtime, old_mtime))
+        assert old_path.stat().st_mtime < task.last_run.timestamp()
+
+        second = backup_engine.run(task, automatic=True)
+        assert second.files_copied == 1
+        assert (dest / "src_old_mtime" / "old.txt").exists()
+        assert (dest / "src_old_mtime" / "old.txt").read_text(
+            encoding="utf-8"
+        ) == "should-copy-missing"
 
 class TestFilters:
     """Тесты фильтров исключений."""
@@ -178,6 +225,32 @@ class TestLayered:
         assert len(layers) == 2
         assert (layers[1] / "f1.txt").exists()
         assert not (layers[1] / "f2.txt").exists()
+
+    def test_layered_copies_missing_with_old_mtime(
+        self, test_root: Path, backup_engine
+    ) -> None:
+        """Новый файл со старым mtime попадает в следующий слой (его не было в назначении)."""
+        src = test_root / "src6b"
+        dest = test_root / "dest6b"
+        dest.mkdir()
+        write_file(src / "a.txt", "a")
+
+        task = make_task([str(src)], str(dest), mode=CopyMode.LAYERED)
+        backup_engine.run(task)
+        run_moment = datetime.now()
+        task.last_run = run_moment
+        task.last_auto_run = run_moment
+
+        new_path = src / "b.txt"
+        write_file(new_path, "b")
+        old_mtime = (run_moment - timedelta(hours=3)).timestamp()
+        os.utime(new_path, (old_mtime, old_mtime))
+
+        backup_engine.run(task, automatic=True)
+        layers = sorted((dest / "src6b").glob("backup_*"))
+        assert len(layers) == 2
+        assert (layers[1] / "b.txt").exists()
+        assert not (layers[1] / "a.txt").exists()
 
 
 class TestDuplicate:
