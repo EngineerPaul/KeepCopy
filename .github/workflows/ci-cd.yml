@@ -95,6 +95,9 @@ jobs:
           name: keepcopy-zip
           path: dist-upload
 
+      - name: Place zip in workspace root
+        run: mv dist-upload/KeepCopy.zip KeepCopy.zip
+
       - name: Ensure deploy directory
         uses: appleboy/ssh-action@v1.2.2
         with:
@@ -114,7 +117,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: dist-upload/KeepCopy.zip
+          source: KeepCopy.zip
           target: ${{ secrets.DEPLOY_PATH }}
 
       - name: Verify on server
