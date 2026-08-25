@@ -15,6 +15,25 @@ from services.backup_engine import BackupEngine
 from services.logger import BackupLogger
 
 
+@pytest.fixture(scope="session")
+def qapp():
+    """Один QApplication на весь прогон; на Windows его нельзя уничтожать в teardown."""
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    yield app
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_sessionfinish(session, exitstatus) -> None:
+    """Обход падения интерпретатора при уничтожении Qt на Windows после UI-тестов."""
+    if os.name == "nt":
+        os._exit(int(exitstatus))
+
+
 @pytest.fixture
 def test_root(tmp_path: Path) -> Path:
     """Корневая директория для тестовых файлов."""

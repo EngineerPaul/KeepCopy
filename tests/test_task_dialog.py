@@ -5,20 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from PySide6.QtWidgets import QApplication
 
 from services.path_utils import validate_directory_path
 from tests.conftest import write_file
 from ui.task_dialog import TaskDialog
-
-
-@pytest.fixture(scope="module")
-def qapp():
-    """Единый QApplication для тестов UI."""
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    yield app
 
 
 def _make_dialog(tmp_path: Path, *, dest: str = "", name: str = "Тест") -> TaskDialog:
