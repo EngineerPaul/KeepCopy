@@ -18,6 +18,14 @@ COMPILER_DIR = ROOT / "compiler"
 ICON = ROOT / "assets" / ICON_ICO
 
 
+def _configure_stdio() -> None:
+    """UTF-8 для логов: на CI Windows stdout часто cp1252 и ломает кириллицу."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def main() -> int:
     """Запускает Nuitka с параметрами проекта."""
     # Короткий путь без пробелов: иначе MinGW из кэша Nuitka не находит windows.h.
@@ -78,4 +86,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _configure_stdio()
     sys.exit(main())

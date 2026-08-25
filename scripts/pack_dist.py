@@ -17,6 +17,14 @@ SKIP_FILES = {"settings.json", "backup.log"}
 SKIP_DIRS = {"errors"}
 
 
+def _configure_stdio() -> None:
+    """UTF-8 для логов на CI Windows (stdout часто cp1252)."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def _should_skip(relative: Path) -> bool:
     """True для пользовательских данных, которых не должно быть в дистрибутиве."""
     if relative.name.lower() in SKIP_FILES:
@@ -58,4 +66,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _configure_stdio()
     sys.exit(main())
