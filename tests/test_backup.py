@@ -72,7 +72,7 @@ class TestKeepChanges:
         assert result.files_copied == 1
         assert (dest / "src_first_auto" / "a.txt").exists()
 
-    def test_automatic_run_skips_old_files_already_in_archive(
+    def test_automatic_run_skips_old_files_already_in_destination(
         self, test_root: Path, backup_engine
     ) -> None:
         """Повторный автозапуск: старый по mtime файл, уже в назначении, не копируется снова."""

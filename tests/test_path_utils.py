@@ -82,8 +82,8 @@ class TestAbsoluteDrivePath:
             ".",
             "..",
             "folder",
-            "t\\archive",
-            "t/archive",
+            "t\\dest",
+            "t/dest",
             "C:relative",
         ],
     )
@@ -106,7 +106,7 @@ class TestAbsoluteDrivePath:
         assert "диска" in err.lower()
 
     def test_relative_rejected_for_destination(self) -> None:
-        ok, err = validate_directory_path("t\\archive")
+        ok, err = validate_directory_path("t\\dest")
         assert not ok
         assert "диска" in err.lower()
 

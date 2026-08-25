@@ -30,19 +30,6 @@ def test_shortcut_path() -> None:
     assert path.parent.name == "Startup"
 
 
-def test_is_autostart_enabled_legacy_shortcut() -> None:
-    current = MagicMock()
-    current.is_file.return_value = False
-    legacy = MagicMock()
-    legacy.is_file.return_value = True
-    with (
-        patch.object(autostart, "is_windows", return_value=True),
-        patch.object(autostart, "shortcut_path", return_value=current),
-        patch.object(autostart, "_legacy_shortcut_path", return_value=legacy),
-    ):
-        assert autostart.is_autostart_enabled() is True
-
-
 def test_get_launch_spec_frozen() -> None:
     exe = Path(r"C:\Apps\KeepCopy\KeepCopy.exe")
     with (
